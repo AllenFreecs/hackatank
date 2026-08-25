@@ -1,0 +1,6 @@
+[
+  {"id": 1, "name": "Weekly Operations Report", "status": "Ready", "lastGenerated": "2026-08-24", "owner": "Operations"},
+  {"id": 2, "name": "Monthly Sales Report", "status": "Ready", "lastGenerated": "2026-08-23", "owner": "Sales"},
+  {"id": 3, "name": "HR Activity Report", "status": "Pending", "lastGenerated": "2026-08-20", "owner": "HR"},
+  {"id": 4, "name": "Pending Tasks Report", "status": "Ready", "lastGenerated": "2026-08-24", "owner": "PMO"}
+]

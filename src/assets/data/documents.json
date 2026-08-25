@@ -1,0 +1,8 @@
+[
+  {"id": 1, "name": "Employee Onboarding Procedure.pdf", "category": "HR", "updatedDate": "2026-08-12", "relevance": 98, "summary": "Covers onboarding process and manual verification steps.", "content": "Employee onboarding requires document checks, manual ID verification, and status updates."},
+  {"id": 2, "name": "Purchase Request SOP.pdf", "category": "Finance", "updatedDate": "2026-07-30", "relevance": 96, "summary": "Approval process for purchase requests.", "content": "Purchase requests below 50000 require department approval. Requests above 50000 require Finance review."},
+  {"id": 3, "name": "Finance Approval Matrix.xlsx", "category": "Finance", "updatedDate": "2026-08-02", "relevance": 90, "summary": "Finance threshold and signoff ownership.", "content": "Defines budget signoff authorities and exception process."},
+  {"id": 4, "name": "Leave Policy.pdf", "category": "HR", "updatedDate": "2026-06-25", "relevance": 80, "summary": "Leave filing and approvals.", "content": "Leave requests must be submitted 3 days in advance unless emergency."},
+  {"id": 5, "name": "Procurement FAQ.docx", "category": "Procurement", "updatedDate": "2026-08-01", "relevance": 84, "summary": "Frequently asked procurement questions.", "content": "Procurement responds to urgent requests within 24 hours."},
+  {"id": 6, "name": "IT Support Guidelines.pdf", "category": "IT", "updatedDate": "2026-07-18", "relevance": 75, "summary": "Support SLA and escalation path.", "content": "Critical issues are addressed in under 2 hours."}
+]

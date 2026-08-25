@@ -1,0 +1,6 @@
+[
+  {"id": 1, "name": "Maria Santos", "department": "HR", "role": "HR Specialist"},
+  {"id": 2, "name": "Liam Cruz", "department": "Finance", "role": "Finance Analyst"},
+  {"id": 3, "name": "Noah Reyes", "department": "Operations", "role": "Operations Manager"},
+  {"id": 4, "name": "Ava Gomez", "department": "Sales", "role": "Sales Lead"}
+]

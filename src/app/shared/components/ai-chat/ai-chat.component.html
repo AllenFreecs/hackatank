@@ -1,0 +1,88 @@
+<section class="chat">
+  <mat-card>
+    <p class="subtitle">Ask questions, analyze information, find knowledge and automate repetitive work.</p>
+    <div class="suggestions">
+      @for (suggestion of suggestions(); track suggestion) {
+        <button mat-stroked-button (click)="onSend(suggestion)">{{ suggestion }}</button>
+      }
+    </div>
+  </mat-card>
+
+  <div class="thread">
+    @for (message of messages(); track message.id) {
+      <mat-card class="bubble" [class.user]="message.role === 'user'">
+        <p>{{ message.content }}</p>
+
+        @if (message.table) {
+          <app-data-table [columns]="message.table.columns" [rows]="message.table.rows" />
+        }
+
+        @if (message.insight) {
+          <p class="insight"><strong>AI Insight:</strong> {{ message.insight }}</p>
+        }
+
+        @if (message.source) {
+          <p class="source"><strong>Source:</strong> {{ message.source }}</p>
+        }
+
+        @if (message.meetingSummary) {
+          <h4>Meeting Summary</h4>
+          <p>{{ message.meetingSummary.summary }}</p>
+          <h4>Decisions</h4>
+          <ul>
+            @for (decision of message.meetingSummary.decisions; track decision) {
+              <li>{{ decision }}</li>
+            }
+          </ul>
+          <h4>Action Items</h4>
+          <app-data-table
+            [columns]="['Owner', 'Action', 'Due']"
+            [rows]="meetingRows(message)"
+          />
+        }
+
+        @if (message.emailDraft) {
+          <div class="email-draft">
+            <p><strong>Subject:</strong> {{ message.emailDraft.subject }}</p>
+            <p class="email-body">{{ message.emailDraft.body }}</p>
+          </div>
+        }
+
+        @if (message.automationSuggestion) {
+          <h4>Suggested Automation</h4>
+          <p><strong>{{ message.automationSuggestion.name }}</strong></p>
+          <ul>
+            @for (step of message.automationSuggestion.currentProcess; track step) {
+              <li>{{ step }}</li>
+            }
+          </ul>
+          <p>{{ message.automationSuggestion.improvement }}</p>
+          <p><strong>Estimated opportunity:</strong> {{ message.automationSuggestion.opportunity }}</p>
+        }
+
+        @if (message.actions?.length) {
+          <div class="actions">
+            @for (item of message.actions; track item) {
+              <button mat-button (click)="action.emit({ action: item, message })">{{ item }}</button>
+            }
+          </div>
+        }
+      </mat-card>
+    }
+
+    @if (loading()) {
+      <app-loading-state message="AI Assistant is typing..." />
+    }
+  </div>
+
+  <mat-card class="composer">
+    <mat-form-field appearance="outline" class="input">
+      <mat-label>Ask the AI assistant</mat-label>
+      <input matInput [(ngModel)]="draft" (keyup.enter)="onSend()" />
+    </mat-form-field>
+    <button mat-flat-button color="primary" (click)="onSend()">
+      <mat-icon>send</mat-icon>
+      Send
+    </button>
+  </mat-card>
+</section>

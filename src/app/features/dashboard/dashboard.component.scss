@@ -1,0 +1,7 @@
+.dashboard { display: grid; gap: 1rem; }
+header h1 { margin-bottom: 0.25rem; color: #0f2a5f; }
+header p { margin: 0; color: #5b6d8a; }
+.kpis { display: grid; gap: 1rem; grid-template-columns: repeat(4, minmax(150px, 1fr)); }
+.grid { display: grid; gap: 1rem; grid-template-columns: 2fr 1fr; }
+mat-card { border-radius: 16px; box-shadow: 0 8px 18px rgba(10, 32, 94, 0.08); }
+ul { margin: 0; padding-left: 1rem; color: #42526f; }

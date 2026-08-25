@@ -1,0 +1,6 @@
+[
+  {"id": 1, "name": "Weekly Operations Report", "trigger": "Every Monday", "action": "Generate Operations Report", "frequency": "Weekly", "recipient": "operations@company.com", "status": "Active"},
+  {"id": 2, "name": "Friday Finance Reminder", "trigger": "Friday 4:00 PM", "action": "Send finance reminder", "frequency": "Weekly", "recipient": "finance@company.com", "status": "Active"},
+  {"id": 3, "name": "Pending Task Follow-up", "trigger": "Daily 9:00 AM", "action": "Follow-up on pending tasks", "frequency": "Daily", "recipient": "team-leads@company.com", "status": "Draft"},
+  {"id": 4, "name": "Meeting Action Tracker", "trigger": "After every meeting", "action": "Create task tracker", "frequency": "Event-based", "recipient": "operations@company.com", "status": "Active"}
+]

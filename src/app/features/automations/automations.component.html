@@ -1,0 +1,22 @@
+<section>
+  <div class="header">
+    <h1>Automations</h1>
+    <button mat-flat-button color="primary" (click)="createAutomation()">Create Automation</button>
+  </div>
+
+  <div class="cards">
+    @for (item of automations; track item.id) {
+      <mat-card>
+        <h3>{{ item.name }}</h3>
+        <p>Status: <strong>{{ item.status }}</strong></p>
+        <p>Trigger: {{ item.trigger }}</p>
+        <p>Action: {{ item.action }}</p>
+        <div class="actions">
+          <button mat-button>Edit</button>
+          <button mat-button (click)="runNow(item.name)">Run Now</button>
+          <button mat-button (click)="disable(item.id)">Disable</button>
+        </div>
+      </mat-card>
+    }
+  </div>
+</section>

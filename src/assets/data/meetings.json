@@ -1,0 +1,13 @@
+[
+  {
+    "id": 1,
+    "title": "Daily Operations Sync",
+    "summary": "Operations discussed the current reporting backlog and onboarding delays.",
+    "decisions": ["Automate weekly reporting", "Review HR onboarding process"],
+    "actionItems": [
+      {"owner": "HR", "action": "Review onboarding checklist", "due": "Friday"},
+      {"owner": "Finance", "action": "Submit missing report", "due": "Thursday"},
+      {"owner": "Operations", "action": "Configure weekly report", "due": "Monday"}
+    ]
+  }
+]

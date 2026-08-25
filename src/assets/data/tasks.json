@@ -1,0 +1,10 @@
+[
+  {"id": 1, "department": "HR", "title": "Complete onboarding documents", "status": "Pending", "owner": "Maria Santos", "dueDate": "2026-08-28", "category": "Onboarding"},
+  {"id": 2, "department": "HR", "title": "Verify IDs for new hires", "status": "Pending", "owner": "Maria Santos", "dueDate": "2026-08-29", "category": "Onboarding"},
+  {"id": 3, "department": "HR", "title": "Prepare orientation schedule", "status": "Pending", "owner": "Maria Santos", "dueDate": "2026-08-30", "category": "Onboarding"},
+  {"id": 4, "department": "Finance", "title": "Review vendor invoices", "status": "Pending", "owner": "Liam Cruz", "dueDate": "2026-08-27", "category": "Compliance"},
+  {"id": 5, "department": "Finance", "title": "Submit monthly reconciliations", "status": "Pending", "owner": "Liam Cruz", "dueDate": "2026-08-29", "category": "Reporting"},
+  {"id": 6, "department": "Operations", "title": "Update warehouse tracker", "status": "Pending", "owner": "Noah Reyes", "dueDate": "2026-08-28", "category": "Operations"},
+  {"id": 7, "department": "Operations", "title": "Finalize shift plan", "status": "Pending", "owner": "Noah Reyes", "dueDate": "2026-08-30", "category": "Planning"},
+  {"id": 8, "department": "Sales", "title": "Follow-up strategic accounts", "status": "Completed", "owner": "Ava Gomez", "dueDate": "2026-08-25", "category": "Sales"}
+]
