@@ -1,5 +1,40 @@
 <section>
   <h1>Reports</h1>
+
+  <div class="summary-grid">
+    <mat-card class="summary-card">
+      <p class="label">Power BI Pipeline</p>
+      <h3>{{ formatCurrency(totalPipeline) }}</h3>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <p class="label">Closed Won</p>
+      <h3>{{ formatCurrency(closedWon) }}</h3>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <p class="label">SLA Reliability</p>
+      <h3>{{ avgSla }}%</h3>
+    </mat-card>
+
+    <mat-card class="summary-card">
+      <p class="label">Connector Alerts</p>
+      <h3>{{ warningConnectors }}</h3>
+    </mat-card>
+  </div>
+
+  <mat-card class="connectors-card">
+    <h3>MCP Connector Telemetry</h3>
+    <div class="connector-list">
+      @for (connector of mcpConnectors; track connector.name) {
+        <div class="connector-item">
+          <span>{{ connector.name }}</span>
+          <span>{{ connector.status }} · {{ connector.latencyMs }} ms · {{ connector.lastSync }}</span>
+        </div>
+      }
+    </div>
+  </mat-card>
+
   <mat-card>
     <table mat-table [dataSource]="reports">
       <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Report</th><td mat-cell *matCellDef="let report">{{ report.name }}</td></ng-container>

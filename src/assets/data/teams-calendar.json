@@ -1,0 +1,30 @@
+[
+  {
+    "title": "MCP Operations Standup",
+    "time": "09:00 AM",
+    "duration": "30m",
+    "owner": "Ana Lim",
+    "channel": "Teams / #ops-command"
+  },
+  {
+    "title": "Power BI Capacity Review",
+    "time": "10:30 AM",
+    "duration": "45m",
+    "owner": "Ravi Shah",
+    "channel": "Teams / Finance Insights"
+  },
+  {
+    "title": "Azure Alert Triage",
+    "time": "01:00 PM",
+    "duration": "25m",
+    "owner": "Cloud NOC",
+    "channel": "Teams / Incident Room"
+  },
+  {
+    "title": "Outlook Approvals Sweep",
+    "time": "03:15 PM",
+    "duration": "20m",
+    "owner": "Marjorie Ong",
+    "channel": "Teams / Exec Ops"
+  }
+]

@@ -22,7 +22,29 @@ export class ReportsComponent {
 
   displayedColumns = ['name', 'status', 'lastGenerated', 'owner', 'actions'];
   reports = this.dataService.getReportsSnapshot();
+  biPerformance = this.dataService.getBiPerformance();
+  mcpConnectors = this.dataService.getMcpConnectors();
   loadingId?: number;
+
+  get totalPipeline(): number {
+    return this.biPerformance[this.biPerformance.length - 1]?.pipeline ?? 0;
+  }
+
+  get closedWon(): number {
+    return this.biPerformance[this.biPerformance.length - 1]?.closedWon ?? 0;
+  }
+
+  get avgSla(): number {
+    if (!this.biPerformance.length) {
+      return 0;
+    }
+    const total = this.biPerformance.reduce((sum, row) => sum + row.sla, 0);
+    return Math.round((total / this.biPerformance.length) * 10) / 10;
+  }
+
+  get warningConnectors(): number {
+    return this.mcpConnectors.filter((item) => item.status !== 'Healthy').length;
+  }
 
   generate(id: number): void {
     this.loadingId = id;
@@ -49,5 +71,13 @@ export class ReportsComponent {
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(link.href);
+  }
+
+  formatCurrency(value: number): string {
+    return new Intl.NumberFormat('en-PH', {
+      style: 'currency',
+      currency: 'PHP',
+      maximumFractionDigits: 0
+    }).format(value);
   }
 }

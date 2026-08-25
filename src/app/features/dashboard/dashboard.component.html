@@ -1,7 +1,7 @@
 <section class="dashboard">
   <header>
-    <h1>Operations Command Center</h1>
-    <p>Track operations performance, identify risk, and activate AI-powered workflows.</p>
+    <h1>MCP Operations Intelligence Hub</h1>
+    <p>Power BI analytics, Azure monitoring, Teams scheduling, and Outlook approvals in one operational cockpit.</p>
   </header>
 
   <div class="kpis">
@@ -12,19 +12,107 @@
   </div>
 
   <div class="grid">
-    <mat-card class="panel activity-panel">
-      <h3>Weekly Activity</h3>
-      <svg class="chart" viewBox="0 0 420 120" preserveAspectRatio="none" aria-label="Weekly activity trend chart">
-        <polyline class="trend-line" fill="none" stroke-width="4" [attr.points]="chartPoints" />
-      </svg>
+    <mat-card class="panel bi-panel">
+      <div class="panel-header">
+        <h3>Power BI Revenue Pipeline</h3>
+        <span class="chip">Real-time Sync</span>
+      </div>
+
+      <div class="bi-graph-wrap">
+        <svg class="chart" viewBox="0 0 430 120" preserveAspectRatio="none" aria-label="Closed-won trend">
+          <polyline class="trend-line" fill="none" stroke-width="3.5" [attr.points]="biLinePoints" />
+        </svg>
+      </div>
+
+      <div class="bi-bars">
+        @for (point of biPerformance; track point.week) {
+          <div class="bar-col">
+            <div class="bar-track">
+              <span class="bar pipeline" [style.height.%]="barHeight(point.pipeline, maxPipeline)"></span>
+              <span class="bar closed" [style.height.%]="barHeight(point.closedWon, maxPipeline)"></span>
+            </div>
+            <p class="bar-label">{{ point.week }}</p>
+          </div>
+        }
+      </div>
+
+      <div class="bi-footnote">
+        <span>Latest closed-won: {{ formatCurrency(biPerformance[biPerformance.length - 1].closedWon) }}</span>
+        <span>Forecast: {{ formatCurrency(biPerformance[biPerformance.length - 1].forecast) }}</span>
+      </div>
     </mat-card>
 
-    <mat-card class="panel insights-panel">
-      <h3>AI Insights</h3>
-      <p>HR currently represents 46% of all pending actions. The primary driver is employee onboarding.</p>
-      <button class="insight-cta" mat-flat-button color="primary" routerLink="/assistant">Ask Assistant →</button>
+    <mat-card class="panel connectors-panel">
+      <h3>MCP Connector Health</h3>
+      <div class="connectors">
+        @for (connector of mcpConnectors; track connector.name) {
+          <div class="connector-row">
+            <div>
+              <p class="connector-name">{{ connector.name }}</p>
+              <p class="connector-sync">Last sync {{ connector.lastSync }} · {{ connector.latencyMs }} ms</p>
+            </div>
+            <span class="status" [class]="'status ' + connectorClass(connector.status)">{{ connector.status }}</span>
+          </div>
+        }
+      </div>
     </mat-card>
   </div>
+
+  <div class="grid second-grid">
+    <mat-card class="panel teams-panel">
+      <h3>Teams Calendar Today</h3>
+      <div class="calendar-list">
+        @for (event of teamsCalendar; track event.title) {
+          <div class="calendar-item">
+            <div class="time">{{ event.time }}</div>
+            <div>
+              <p class="event-title">{{ event.title }}</p>
+              <p class="event-meta">{{ event.duration }} · {{ event.owner }} · {{ event.channel }}</p>
+            </div>
+          </div>
+        }
+      </div>
+    </mat-card>
+
+    <mat-card class="panel outlook-panel">
+      <h3>Outlook Approval Queue</h3>
+      <div class="queue-list">
+        @for (mail of outlookQueue; track mail.subject) {
+          <div class="queue-item">
+            <div>
+              <p class="mail-subject">{{ mail.subject }}</p>
+              <p class="mail-meta">{{ mail.sender }} · {{ mail.received }}</p>
+            </div>
+            <span class="priority" [class]="'priority ' + priorityClass(mail.priority)">{{ mail.priority }}</span>
+          </div>
+        }
+      </div>
+    </mat-card>
+  </div>
+
+  <mat-card class="panel sprint-panel">
+    <div class="panel-header">
+      <h3>Sprint Board (Automation Team)</h3>
+      <button class="insight-cta" mat-flat-button color="primary" routerLink="/assistant">Ask Assistant →</button>
+    </div>
+
+    <div class="sprint-grid">
+      @for (lane of sprintBoard; track lane.lane) {
+        <div class="lane">
+          <h4>{{ lane.lane }}</h4>
+          <div class="lane-items">
+            @for (item of lane.items; track item.title) {
+              <article class="ticket">
+                <p class="ticket-title">{{ item.title }}</p>
+                <p class="ticket-meta">{{ item.owner }}</p>
+                <span class="tag">{{ item.tag }}</span>
+              </article>
+            }
+          </div>
+        </div>
+      }
+    </div>
+  </mat-card>
 
   <mat-card class="panel recent-panel">
     <h3>Recent Activity</h3>

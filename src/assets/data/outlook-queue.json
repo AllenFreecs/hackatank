@@ -1,0 +1,6 @@
+[
+  { "subject": "Budget variance approval", "sender": "CFO Office", "priority": "High", "received": "08:44 AM" },
+  { "subject": "Vendor SLA escalation", "sender": "Procurement", "priority": "Medium", "received": "10:07 AM" },
+  { "subject": "QBR deck sign-off", "sender": "Sales Ops", "priority": "Medium", "received": "11:52 AM" },
+  { "subject": "Onboarding policy update", "sender": "HR Shared Services", "priority": "Low", "received": "01:18 PM" }
+]

@@ -14,6 +14,11 @@ import meetingsSeed from '../../../assets/data/meetings.json';
 import reportsSeed from '../../../assets/data/reports.json';
 import salesSeed from '../../../assets/data/sales.json';
 import tasksSeed from '../../../assets/data/tasks.json';
+import biPerformanceSeed from '../../../assets/data/bi-performance.json';
+import teamsCalendarSeed from '../../../assets/data/teams-calendar.json';
+import sprintBoardSeed from '../../../assets/data/sprint-board.json';
+import mcpConnectorsSeed from '../../../assets/data/mcp-connectors.json';
+import outlookQueueSeed from '../../../assets/data/outlook-queue.json';
 
 interface MeetingRecord {
   id: number;
@@ -33,6 +38,47 @@ interface DepartmentRecord {
   head: string;
 }
 
+interface BiPerformanceRecord {
+  week: string;
+  pipeline: number;
+  closedWon: number;
+  forecast: number;
+  sla: number;
+}
+
+interface TeamsCalendarEvent {
+  title: string;
+  time: string;
+  duration: string;
+  owner: string;
+  channel: string;
+}
+
+interface SprintBoardItem {
+  title: string;
+  owner: string;
+  tag: string;
+}
+
+interface SprintLane {
+  lane: string;
+  items: SprintBoardItem[];
+}
+
+interface McpConnectorStatus {
+  name: string;
+  status: 'Healthy' | 'Warning' | 'Critical';
+  lastSync: string;
+  latencyMs: number;
+}
+
+interface OutlookQueueItem {
+  subject: string;
+  sender: string;
+  priority: 'High' | 'Medium' | 'Low';
+  received: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class DataService {
   private readonly seed = {
@@ -44,6 +90,11 @@ export class DataService {
     sales: salesSeed as SalesRecord[],
     departments: departmentsSeed as DepartmentRecord[],
     automations: automationsSeed as Automation[],
+    biPerformance: biPerformanceSeed as BiPerformanceRecord[],
+    teamsCalendar: teamsCalendarSeed as TeamsCalendarEvent[],
+    sprintBoard: sprintBoardSeed as SprintLane[],
+    mcpConnectors: mcpConnectorsSeed as McpConnectorStatus[],
+    outlookQueue: outlookQueueSeed as OutlookQueueItem[],
     activities: [
       'Weekly operations report generated',
       '3 follow-up tasks created',
@@ -135,6 +186,26 @@ export class DataService {
 
   getWeeklyActivity(): number[] {
     return [35, 42, 39, 48, 56, 52, 61];
+  }
+
+  getBiPerformance(): BiPerformanceRecord[] {
+    return this.clone(this.seed.biPerformance);
+  }
+
+  getTeamsCalendar(): TeamsCalendarEvent[] {
+    return this.clone(this.seed.teamsCalendar);
+  }
+
+  getSprintBoard(): SprintLane[] {
+    return this.clone(this.seed.sprintBoard);
+  }
+
+  getMcpConnectors(): McpConnectorStatus[] {
+    return this.clone(this.seed.mcpConnectors);
+  }
+
+  getOutlookQueue(): OutlookQueueItem[] {
+    return this.clone(this.seed.outlookQueue);
   }
 
   getSales(): SalesRecord[] {

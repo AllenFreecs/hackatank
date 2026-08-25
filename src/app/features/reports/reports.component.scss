@@ -9,10 +9,77 @@ h1 {
 	letter-spacing: 0.01em;
 }
 
+.summary-grid {
+	display: grid;
+	grid-template-columns: repeat(4, minmax(160px, 1fr));
+	gap: 0.9rem;
+	margin-bottom: 0.9rem;
+}
+
+.summary-card {
+	padding: 1rem;
+}
+
+.label {
+	margin: 0;
+	font-size: 0.79rem;
+	color: var(--app-muted);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+h3 {
+	margin: 0.38rem 0 0;
+	color: var(--app-heading);
+	font-size: 1.5rem;
+}
+
+.connectors-card {
+	margin-bottom: 0.9rem;
+}
+
+.connectors-card h3 {
+	font-size: 1rem;
+	margin-top: 0;
+}
+
+.connector-list {
+	display: grid;
+	gap: 0.5rem;
+}
+
+.connector-item {
+	display: flex;
+	justify-content: space-between;
+	gap: 1rem;
+	padding: 0.55rem 0.7rem;
+	border: 1px solid var(--app-border);
+	border-radius: 10px;
+	font-size: 0.86rem;
+	color: var(--app-text);
+}
+
 mat-card {
 	border-radius: 18px;
 }
 
 table {
 	width: 100%;
+}
+
+@media (max-width: 980px) {
+	.summary-grid {
+		grid-template-columns: repeat(2, minmax(160px, 1fr));
+	}
+
+	.connector-item {
+		flex-direction: column;
+		gap: 0.25rem;
+	}
+}
+
+@media (max-width: 600px) {
+	.summary-grid {
+		grid-template-columns: 1fr;
+	}
 }

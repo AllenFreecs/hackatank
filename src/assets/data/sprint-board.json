@@ -1,0 +1,29 @@
+[
+  {
+    "lane": "Backlog",
+    "items": [
+      { "title": "MCP token refresh monitor", "owner": "J. Rivera", "tag": "Azure" },
+      { "title": "Outlook follow-up classifier", "owner": "M. Santos", "tag": "Outlook" }
+    ]
+  },
+  {
+    "lane": "In Progress",
+    "items": [
+      { "title": "Teams meeting recap sync", "owner": "K. Dizon", "tag": "Teams" },
+      { "title": "Power BI anomaly digest", "owner": "R. Shah", "tag": "Power BI" }
+    ]
+  },
+  {
+    "lane": "Review",
+    "items": [
+      { "title": "Azure cost drift alerting", "owner": "T. Gomez", "tag": "Azure" }
+    ]
+  },
+  {
+    "lane": "Done",
+    "items": [
+      { "title": "Executive KPI daily push", "owner": "A. Lim", "tag": "Outlook" },
+      { "title": "Teams channel digest bot", "owner": "Cloud NOC", "tag": "Teams" }
+    ]
+  }
+]

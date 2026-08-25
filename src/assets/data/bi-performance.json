@@ -1,0 +1,8 @@
+[
+  { "week": "Wk 1", "pipeline": 1880000, "closedWon": 1420000, "forecast": 1550000, "sla": 96 },
+  { "week": "Wk 2", "pipeline": 1945000, "closedWon": 1490000, "forecast": 1610000, "sla": 95 },
+  { "week": "Wk 3", "pipeline": 2010000, "closedWon": 1565000, "forecast": 1660000, "sla": 97 },
+  { "week": "Wk 4", "pipeline": 2090000, "closedWon": 1640000, "forecast": 1725000, "sla": 98 },
+  { "week": "Wk 5", "pipeline": 2175000, "closedWon": 1705000, "forecast": 1790000, "sla": 97 },
+  { "week": "Wk 6", "pipeline": 2240000, "closedWon": 1760000, "forecast": 1855000, "sla": 99 }
+]
