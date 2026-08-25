@@ -199,6 +199,15 @@ export class DataService {
     );
   }
 
+  updateAutomation(id: number, updates: Omit<Automation, 'id' | 'status'>): void {
+    this.automationsSubject.next(
+      this.automationsSubject.value.map((automation) =>
+        automation.id === id ? { ...automation, ...updates } : automation
+      )
+    );
+    this.addActivity(`Automation updated: ${updates.name}`);
+  }
+
   searchDocuments(query: string): DocumentItem[] {
     const lowered = query.toLowerCase();
     return this.documentsSubject.value.filter(
@@ -209,6 +218,16 @@ export class DataService {
     );
   }
 
+  getPurchaseRequestPolicy(): { answer: string; source: string } {
+    const policyDocument = this.searchDocuments('purchase request')[0];
+    return {
+      answer:
+        policyDocument?.content ??
+        'Purchase requests below ₱50,000 require department approval. Requests above ₱50,000 require Finance review.',
+      source: policyDocument?.name ?? 'Purchase Request SOP.pdf'
+    };
+  }
+
   simulateSendEmail(subject: string): void {
     this.addActivity(`Email prepared successfully: ${subject}`);
   }
@@ -216,13 +235,14 @@ export class DataService {
   createTasksFromMeeting(): void {
     const meeting = this.getMeetingSummary();
     const baseId = Math.max(...this.tasksSubject.value.map((task) => task.id), 0) + 1;
+    const baseDate = new Date().toISOString().slice(0, 10);
     const newTasks = meeting.actionItems.map((item, index) => ({
+      dueDate: this.shiftDate(baseDate, index),
       id: baseId + index,
       department: item.owner,
       title: item.action,
       status: 'Pending' as const,
       owner: item.owner,
-      dueDate: `2026-08-${29 + index}`,
       category: 'Meeting Follow-up'
     }));
     this.tasksSubject.next([...this.tasksSubject.value, ...newTasks]);
@@ -231,6 +251,10 @@ export class DataService {
 
   getReportsSnapshot(): Report[] {
     return this.clone(this.reportsSubject.value);
+  }
+
+  getTasksSnapshot(): Task[] {
+    return this.clone(this.tasksSubject.value);
   }
 
   getDocumentsSnapshot(): DocumentItem[] {
@@ -251,5 +275,11 @@ export class DataService {
 
   private clone<T>(value: T): T {
     return structuredClone(value);
+  }
+
+  private shiftDate(baseDate: string, dayOffset: number): string {
+    const date = new Date(`${baseDate}T00:00:00.000Z`);
+    date.setUTCDate(date.getUTCDate() + dayOffset);
+    return date.toISOString().slice(0, 10);
   }
 }

@@ -6,6 +6,7 @@ import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatInputModule } from '@angular/material/input';
 import { MatTableModule } from '@angular/material/table';
 import { DataService } from '../../core/services/data.service';
+import { NotificationService } from '../../core/services/notification.service';
 
 @Component({
   selector: 'app-knowledge',
@@ -16,6 +17,7 @@ import { DataService } from '../../core/services/data.service';
 })
 export class KnowledgeComponent {
   private readonly dataService = inject(DataService);
+  private readonly notificationService = inject(NotificationService);
 
   displayedColumns = ['name', 'category', 'updatedDate', 'relevance', 'open'];
   documents = this.dataService.getDocumentsSnapshot();
@@ -27,15 +29,19 @@ export class KnowledgeComponent {
     if (!this.query.trim()) {
       return;
     }
-    const results = this.dataService.searchDocuments(this.query);
     if (this.query.toLowerCase().includes('purchase request')) {
-      this.answer =
-        'Purchase requests below ₱50,000 require department approval. Requests above ₱50,000 require Finance review.';
-      this.source = 'Purchase Request SOP.pdf';
+      const policy = this.dataService.getPurchaseRequestPolicy();
+      this.answer = policy.answer;
+      this.source = policy.source;
       return;
     }
+    const results = this.dataService.searchDocuments(this.query);
     const top = results[0];
     this.answer = top ? top.summary : 'No matching document found.';
     this.source = top?.name ?? '-';
+  }
+
+  openDocument(name: string): void {
+    this.notificationService.show(`Opened ${name}`);
   }
 }

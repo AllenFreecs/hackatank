@@ -12,7 +12,7 @@
         <p>Trigger: {{ item.trigger }}</p>
         <p>Action: {{ item.action }}</p>
         <div class="actions">
-          <button mat-button>Edit</button>
+          <button mat-button (click)="editAutomation(item.id)">Edit</button>
           <button mat-button (click)="runNow(item.name)">Run Now</button>
           <button mat-button (click)="disable(item.id)">Disable</button>
         </div>

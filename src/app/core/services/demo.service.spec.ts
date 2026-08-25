@@ -15,8 +15,9 @@ describe('DemoService', () => {
 
   it('loads hr onboarding scenario with extra hr task', () => {
     demoService.loadScenario('HR Onboarding');
-    const hrTasks = dataService.getPendingByDepartment().find((entry) => entry.department === 'HR');
-    expect(hrTasks?.pending).toBe(42);
+    const task = dataService.getTasksSnapshot().find((entry) => entry.id === 99);
+    expect(task?.department).toBe('HR');
+    expect(task?.status).toBe('Pending');
   });
 
   it('resets demo data', () => {

@@ -44,10 +44,10 @@ export class AiAssistantService {
     }
 
     if (lowered.includes('purchase request')) {
+      const policy = this.dataService.getPurchaseRequestPolicy();
       return this.reply({
-        content:
-          'Purchase requests below ₱50,000 require department approval. Requests above ₱50,000 require Finance review.',
-        source: 'Purchase Request SOP.pdf'
+        content: policy.answer,
+        source: policy.source
       });
     }
 
@@ -58,9 +58,10 @@ export class AiAssistantService {
       if (!previous || !current) {
         return this.reply({ content: 'Sales data is currently unavailable.' });
       }
+      const percent = ((current.amount - previous.amount) / previous.amount) * 100;
       return this.reply({
         content: `Sales increased from ₱${previous.amount.toLocaleString()} in ${previous.month} to ₱${current.amount.toLocaleString()} in ${current.month}.`,
-        insight: 'That is an 8.98% month-over-month increase.'
+        insight: `That is a ${percent.toFixed(2)}% month-over-month increase.`
       });
     }
 

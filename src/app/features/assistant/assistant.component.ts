@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { AiAssistantService } from '../../core/services/ai-assistant.service';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -13,6 +14,7 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
   styles: ['h1 { margin: 0 0 1rem; color:#0f2a5f; }']
 })
 export class AssistantComponent {
+  private readonly destroyRef = inject(DestroyRef);
   loading = false;
   messages: ChatMessage[] = [];
   suggestions = [
@@ -39,10 +41,13 @@ export class AssistantComponent {
     };
     this.messages = [...this.messages, userMessage];
     this.loading = true;
-    this.assistantService.respond(prompt).subscribe((reply) => {
-      this.messages = [...this.messages, reply];
-      this.loading = false;
-    });
+    this.assistantService
+      .respond(prompt)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((reply) => {
+        this.messages = [...this.messages, reply];
+        this.loading = false;
+      });
   }
 
   handleAction(action: string, message: ChatMessage): void {
