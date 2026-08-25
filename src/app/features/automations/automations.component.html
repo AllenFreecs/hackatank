@@ -6,11 +6,11 @@
 
   <div class="cards">
     @for (item of automations; track item.id) {
-      <mat-card>
+      <mat-card class="wtw-panel automation-card">
         <h3>{{ item.name }}</h3>
-        <p>Status: <strong>{{ item.status }}</strong></p>
-        <p>Trigger: {{ item.trigger }}</p>
-        <p>Action: {{ item.action }}</p>
+        <p><span class="meta-label">Status:</span> <strong>{{ item.status }}</strong></p>
+        <p><span class="meta-label">Trigger:</span> {{ item.trigger }}</p>
+        <p><span class="meta-label">Action:</span> {{ item.action }}</p>
         <div class="actions">
           <button mat-button (click)="editAutomation(item.id)">Edit</button>
           <button mat-button (click)="runNow(item.name)">Run Now</button>

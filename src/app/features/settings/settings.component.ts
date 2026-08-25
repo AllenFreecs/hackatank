@@ -8,7 +8,7 @@ import { MatCardModule } from '@angular/material/card';
   template: `
     <section class="settings-page">
       <h1>Settings</h1>
-      <mat-card>
+      <mat-card class="wtw-panel">
         <p>Configure assistant preferences, notifications, and demo defaults.</p>
       </mat-card>
     </section>

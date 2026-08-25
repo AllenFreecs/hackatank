@@ -11,6 +11,7 @@ h1 {
 
 .search-card {
 	margin-bottom: 1rem;
+	padding: 1.15rem 1.2rem;
 }
 
 .query {
@@ -18,8 +19,8 @@ h1 {
 	margin-right: 1rem;
 }
 
-mat-card {
-	border-radius: 18px;
+.results-card {
+	padding: 0.4rem 0.6rem;
 }
 
 table {

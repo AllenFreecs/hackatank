@@ -61,6 +61,9 @@ export class AssistantComponent {
     "Compare this month's sales with last month.",
     'Find the latest employee onboarding procedure.',
     'Summarize this meeting and identify action items.',
+    'Set calendar event for MCP weekly sync tomorrow 10:30 AM.',
+    'Comment on thread with operations status update.',
+    'Lookup related articles in SharePoint about onboarding automation.',
     'Draft an email about the delayed report.',
     'What should we automate?'
   ];
@@ -111,6 +114,39 @@ export class AssistantComponent {
         recipient: 'hr@company.com'
       });
       this.notificationService.show('Automation created: Automated onboarding status tracking.');
+      return;
+    }
+
+    if (action === 'Set Calendar Event') {
+      const event = this.dataService.createCalendarEvent({
+        title: 'MCP Weekly Sync',
+        time: '10:30 AM',
+        duration: '45m',
+        owner: 'Operations PMO',
+        channel: 'Teams / Exec Ops'
+      });
+      this.notificationService.show(`Calendar event created: ${event.title} (${event.time})`);
+      return;
+    }
+
+    if (action === 'Post Comment to Thread' || action === 'Comment on Thread') {
+      this.dataService.postTeamsThreadComment(
+        'MCP Operations Updates',
+        'Power BI refresh completed, Azure triage ongoing, and Outlook approvals queued for review.'
+      );
+      this.notificationService.show('Comment posted to Teams thread.');
+      return;
+    }
+
+    if (action === 'Find Related SharePoint Articles') {
+      const matches = this.dataService.lookupSharePointArticles('onboarding automation');
+      this.notificationService.show(`SharePoint lookup completed: ${matches.length} related article${matches.length === 1 ? '' : 's'} found.`);
+      return;
+    }
+
+    if (action === 'Open Top Article') {
+      const top = this.dataService.lookupSharePointArticles('onboarding automation')[0];
+      this.notificationService.show(top ? `Opening article: ${top.name}` : 'No related SharePoint articles found.');
       return;
     }
 

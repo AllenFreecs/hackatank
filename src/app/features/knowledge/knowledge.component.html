@@ -1,6 +1,6 @@
 <section>
   <h1>Knowledge</h1>
-  <mat-card class="search-card">
+  <mat-card class="wtw-panel search-card">
     <mat-form-field appearance="outline" class="query">
       <mat-label>Ask a question about company knowledge...</mat-label>
       <input matInput [(ngModel)]="query" (keyup.enter)="ask()" />
@@ -12,7 +12,7 @@
     }
   </mat-card>
 
-  <mat-card>
+  <mat-card class="wtw-panel results-card">
     <table mat-table [dataSource]="documents">
       <ng-container matColumnDef="name"><th mat-header-cell *matHeaderCellDef>Document</th><td mat-cell *matCellDef="let row">{{ row.name }}</td></ng-container>
       <ng-container matColumnDef="category"><th mat-header-cell *matHeaderCellDef>Category</th><td mat-cell *matCellDef="let row">{{ row.category }}</td></ng-container>

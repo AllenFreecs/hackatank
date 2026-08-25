@@ -54,6 +54,13 @@ interface TeamsCalendarEvent {
   channel: string;
 }
 
+interface SharePointArticleLookup {
+  name: string;
+  category: string;
+  relevance: number;
+  summary: string;
+}
+
 interface SprintBoardItem {
   title: string;
   owner: string;
@@ -111,6 +118,7 @@ export class DataService {
   private readonly salesSubject = new BehaviorSubject<SalesRecord[]>([]);
   private readonly departmentsSubject = new BehaviorSubject<DepartmentRecord[]>([]);
   private readonly automationsSubject = new BehaviorSubject<Automation[]>([]);
+  private readonly teamsCalendarSubject = new BehaviorSubject<TeamsCalendarEvent[]>([]);
   private readonly activitySubject = new BehaviorSubject<string[]>([]);
 
   tasks$ = this.tasksSubject.asObservable();
@@ -132,6 +140,7 @@ export class DataService {
     this.salesSubject.next(this.clone(this.seed.sales));
     this.departmentsSubject.next(this.clone(this.seed.departments));
     this.automationsSubject.next(this.clone(this.seed.automations));
+    this.teamsCalendarSubject.next(this.clone(this.seed.teamsCalendar));
     this.activitySubject.next(this.clone(this.seed.activities));
   }
 
@@ -193,7 +202,7 @@ export class DataService {
   }
 
   getTeamsCalendar(): TeamsCalendarEvent[] {
-    return this.clone(this.seed.teamsCalendar);
+    return this.clone(this.teamsCalendarSubject.value);
   }
 
   getSprintBoard(): SprintLane[] {
@@ -206,6 +215,38 @@ export class DataService {
 
   getOutlookQueue(): OutlookQueueItem[] {
     return this.clone(this.seed.outlookQueue);
+  }
+
+  createCalendarEvent(event: Omit<TeamsCalendarEvent, 'channel'> & { channel?: string }): TeamsCalendarEvent {
+    const nextEvent: TeamsCalendarEvent = {
+      ...event,
+      channel: event.channel ?? 'Teams / Exec Ops'
+    };
+    this.teamsCalendarSubject.next([nextEvent, ...this.teamsCalendarSubject.value]);
+    this.addActivity(`Teams calendar event created: ${nextEvent.title} at ${nextEvent.time}`);
+    return nextEvent;
+  }
+
+  postTeamsThreadComment(topic: string, comment: string): void {
+    this.addActivity(`Thread update posted in Teams: ${topic} (${comment.slice(0, 48)}${comment.length > 48 ? '...' : ''})`);
+  }
+
+  lookupSharePointArticles(query: string): SharePointArticleLookup[] {
+    const matches = this.searchDocuments(query)
+      .sort((a, b) => b.relevance - a.relevance)
+      .slice(0, 4)
+      .map((entry) => ({
+        name: entry.name,
+        category: entry.category,
+        relevance: entry.relevance,
+        summary: entry.summary
+      }));
+
+    if (matches.length) {
+      this.addActivity(`SharePoint lookup completed for "${query}" (${matches.length} article${matches.length > 1 ? 's' : ''})`);
+    }
+
+    return matches;
   }
 
   getSales(): SalesRecord[] {

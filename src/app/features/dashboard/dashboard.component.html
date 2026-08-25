@@ -12,7 +12,7 @@
   </div>
 
   <div class="grid">
-    <mat-card class="panel bi-panel">
+    <mat-card class="wtw-panel panel bi-panel">
       <div class="panel-header">
         <h3>Power BI Revenue Pipeline</h3>
         <span class="chip">Real-time Sync</span>
@@ -42,7 +42,7 @@
       </div>
     </mat-card>
 
-    <mat-card class="panel connectors-panel">
+    <mat-card class="wtw-panel panel connectors-panel">
       <h3>MCP Connector Health</h3>
       <div class="connectors">
         @for (connector of mcpConnectors; track connector.name) {
@@ -59,7 +59,7 @@
   </div>
 
   <div class="grid second-grid">
-    <mat-card class="panel teams-panel">
+    <mat-card class="wtw-panel panel teams-panel">
       <h3>Teams Calendar Today</h3>
       <div class="calendar-list">
         @for (event of teamsCalendar; track event.title) {
@@ -74,7 +74,7 @@
       </div>
     </mat-card>
 
-    <mat-card class="panel outlook-panel">
+    <mat-card class="wtw-panel panel outlook-panel">
       <h3>Outlook Approval Queue</h3>
       <div class="queue-list">
         @for (mail of outlookQueue; track mail.subject) {
@@ -90,7 +90,7 @@
     </mat-card>
   </div>
 
-  <mat-card class="panel sprint-panel">
+  <mat-card class="wtw-panel panel sprint-panel">
     <div class="panel-header">
       <h3>Sprint Board (Automation Team)</h3>
       <button class="insight-cta" mat-flat-button color="primary" routerLink="/assistant">Ask Assistant →</button>
@@ -114,12 +114,18 @@
     </div>
   </mat-card>
 
-  <mat-card class="panel recent-panel">
+  <mat-card class="wtw-panel panel recent-panel">
     <h3>Recent Activity</h3>
-    <ul>
-      @for (item of recentActivity; track item) {
-        <li>{{ item }}</li>
+    <div class="activity-list">
+      @for (item of recentActivity; track item; let i = $index) {
+        <article class="activity-item">
+          <span class="activity-dot" aria-hidden="true"></span>
+          <div>
+            <p class="activity-text">{{ item }}</p>
+            <p class="activity-time">{{ i + 1 }}h ago</p>
+          </div>
+        </article>
       }
-    </ul>
+    </div>
   </mat-card>
 </section>

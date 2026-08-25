@@ -1,6 +1,7 @@
 [
   { "name": "Power BI Workspace", "status": "Healthy", "lastSync": "2m ago", "latencyMs": 184 },
   { "name": "Azure Monitor", "status": "Warning", "lastSync": "1m ago", "latencyMs": 436 },
+  { "name": "SharePoint Knowledge Hub", "status": "Healthy", "lastSync": "40s ago", "latencyMs": 168 },
   { "name": "Teams Calendar", "status": "Healthy", "lastSync": "30s ago", "latencyMs": 142 },
   { "name": "Outlook Mailbox", "status": "Healthy", "lastSync": "45s ago", "latencyMs": 196 }
 ]

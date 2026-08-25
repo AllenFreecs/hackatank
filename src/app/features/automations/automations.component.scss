@@ -21,27 +21,37 @@ h1 {
 	display: grid;
 	gap: 1rem;
 	grid-template-columns: repeat(2, minmax(260px, 1fr));
+	align-items: stretch;
 }
 
-mat-card {
-	border-radius: 18px;
+.automation-card {
+	padding: 1.2rem 1.25rem;
+	display: flex;
+	flex-direction: column;
 }
 
-mat-card h3 {
-	margin-top: 0;
+.automation-card h3 {
+	margin: 0 0 0.85rem;
 	color: var(--app-heading);
+	line-height: 1.3;
 }
 
-mat-card p {
+.automation-card p {
+	margin: 0.34rem 0;
+	color: var(--app-text);
+}
+
+.meta-label {
 	color: var(--app-muted);
+	font-weight: 600;
 }
 
 .actions {
 	display: flex;
 	gap: 0.5rem;
 	flex-wrap: wrap;
-	margin-top: 0.9rem;
-	padding-top: 0.8rem;
+	margin-top: auto;
+	padding-top: 1rem;
 	border-top: 1px dashed var(--app-border);
 }
 
