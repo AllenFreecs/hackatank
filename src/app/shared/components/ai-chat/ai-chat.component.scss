@@ -1,0 +1,12 @@
+.chat { display: grid; gap: 1rem; }
+.subtitle { margin: 0 0 1rem; color: #617192; }
+.suggestions { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.thread { display: grid; gap: 0.75rem; }
+.bubble { border-radius: 14px; }
+.bubble.user { margin-left: 15%; background: #eef4ff; }
+.actions { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem; }
+.insight { color: #0f2a5f; }
+.source { color: #1b4a99; }
+.composer { display: flex; align-items: center; gap: 1rem; }
+.input { flex: 1; }
+.email-body { white-space: pre-wrap; }

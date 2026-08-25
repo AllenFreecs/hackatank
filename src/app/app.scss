@@ -1,0 +1,10 @@
+:host { color: #0f2a5f; }
+.layout { height: 100vh; background: #f4f7fc; }
+mat-sidenav { width: 250px; border-right: 1px solid #dde6f5; background: #0f1f45; color: #fff; }
+.logo { font-weight: 700; font-size: 1.1rem; padding: 1rem 1.25rem; }
+a.mat-mdc-list-item { color: rgba(255,255,255,0.88); border-radius: 10px; margin: 0.125rem 0.5rem; }
+a.active-link { background: rgba(255, 255, 255, 0.12); }
+mat-toolbar { background: #fff; border-bottom: 1px solid #dde6f5; }
+.title { font-weight: 600; }
+.spacer { flex: 1; }
+main { padding: 1.25rem; }

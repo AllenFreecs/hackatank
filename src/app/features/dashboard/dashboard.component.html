@@ -1,0 +1,37 @@
+<section class="dashboard">
+  <header>
+    <h1>Operations Command Center</h1>
+    <p>Track operations performance, identify risk, and activate AI-powered workflows.</p>
+  </header>
+
+  <div class="kpis">
+    <app-kpi-card label="Pending Tasks" [value]="kpis.pendingTasks" icon="pending_actions" />
+    <app-kpi-card label="Reports Generated" [value]="kpis.reportsGenerated" icon="description" />
+    <app-kpi-card label="Open Follow-ups" [value]="kpis.followUps" icon="task_alt" />
+    <app-kpi-card label="Automation Opportunities" [value]="kpis.automationOpportunities" icon="auto_fix_high" />
+  </div>
+
+  <div class="grid">
+    <mat-card>
+      <h3>Weekly Activity</h3>
+      <svg width="420" height="120" viewBox="0 0 420 120">
+        <polyline fill="none" stroke="#2f6bff" stroke-width="4" [attr.points]="chartPoints" />
+      </svg>
+    </mat-card>
+
+    <mat-card>
+      <h3>AI Insights</h3>
+      <p>HR currently represents 46% of all pending actions. The primary driver is employee onboarding.</p>
+      <button mat-flat-button color="primary" routerLink="/assistant">Ask Assistant →</button>
+    </mat-card>
+  </div>
+
+  <mat-card>
+    <h3>Recent Activity</h3>
+    <ul>
+      @for (item of recentActivity; track item) {
+        <li>{{ item }}</li>
+      }
+    </ul>
+  </mat-card>
+</section>

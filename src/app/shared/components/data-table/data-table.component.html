@@ -1,0 +1,10 @@
+<table mat-table [dataSource]="rows()" class="table">
+  @for (column of columns(); track column; let idx = $index) {
+    <ng-container [matColumnDef]="column">
+      <th mat-header-cell *matHeaderCellDef>{{ column }}</th>
+      <td mat-cell *matCellDef="let row">{{ row[idx] }}</td>
+    </ng-container>
+  }
+  <tr mat-header-row *matHeaderRowDef="columns()"></tr>
+  <tr mat-row *matRowDef="let row; columns: columns()"></tr>
+</table>
