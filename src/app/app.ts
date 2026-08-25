@@ -1,4 +1,5 @@
-import { Component } from '@angular/core';
+import { DOCUMENT } from '@angular/common';
+import { Component, inject } from '@angular/core';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatListModule } from '@angular/material/list';
@@ -31,6 +32,8 @@ interface NavItem {
   styleUrl: './app.scss'
 })
 export class App {
+  private readonly document = inject(DOCUMENT);
+
   navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
     { label: 'AI Assistant', icon: 'smart_toy', route: '/assistant' },
@@ -41,5 +44,15 @@ export class App {
     { label: 'Settings', icon: 'settings', route: '/settings' }
   ];
 
-  constructor(readonly demoService: DemoService) {}
+  constructor(readonly demoService: DemoService) {
+    this.applyLightTheme();
+  }
+
+  private applyLightTheme(): void {
+    const root = this.document.documentElement;
+    root.classList.add('light-theme');
+    root.classList.remove('dark-theme');
+    this.document.body.classList.remove('dark-theme');
+    globalThis.localStorage?.setItem('theme', 'light');
+  }
 }

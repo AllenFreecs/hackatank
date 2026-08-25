@@ -1,6 +1,11 @@
 <mat-sidenav-container class="layout">
   <mat-sidenav mode="side" opened>
-    <div class="logo">AI Assistant</div>
+    <div class="logo">
+      <div>
+        <p class="logo-title">AI Assistant</p>
+        <p class="logo-subtitle">Operations Command Center</p>
+      </div>
+    </div>
     <mat-nav-list>
       @for (item of navItems; track item.route) {
         <a mat-list-item [routerLink]="item.route" routerLinkActive="active-link">
@@ -14,6 +19,7 @@
   <mat-sidenav-content>
     <mat-toolbar>
       <span class="title">AI Assistant</span>
+      <span class="status-chip">Realtime Demo</span>
       <span class="spacer"></span>
       <button mat-icon-button aria-label="Search"><mat-icon>search</mat-icon></button>
       <button mat-icon-button aria-label="Notifications"><mat-icon>notifications</mat-icon></button>

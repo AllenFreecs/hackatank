@@ -1,7 +1,9 @@
 <mat-card class="kpi-card">
-  <div>
+  <div class="metric">
     <p class="kpi-label">{{ label() }}</p>
     <h2>{{ value() }}</h2>
   </div>
-  <mat-icon>{{ icon() }}</mat-icon>
+  <div class="icon-chip" aria-hidden="true">
+    <mat-icon>{{ icon() }}</mat-icon>
+  </div>
 </mat-card>

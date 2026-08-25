@@ -1,4 +1,5 @@
 import { Component, EventEmitter, input, Output } from '@angular/core';
+import { TextFieldModule } from '@angular/cdk/text-field';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
@@ -14,6 +15,7 @@ import { LoadingStateComponent } from '../loading-state/loading-state.component'
   standalone: true,
   imports: [
     FormsModule,
+    TextFieldModule,
     MatCardModule,
     MatInputModule,
     MatButtonModule,
@@ -42,6 +44,24 @@ export class AiChatComponent {
     }
     this.sendPrompt.emit(text);
     this.draft = '';
+  }
+
+  onComposerKeydown(event: KeyboardEvent): void {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      this.onSend();
+    }
+  }
+
+  roleLabel(message: ChatMessage): string {
+    return message.role === 'user' ? 'You' : 'Assistant';
+  }
+
+  timestampLabel(message: ChatMessage): string {
+    const timestamp = new Date(message.timestamp);
+    return Number.isNaN(timestamp.getTime())
+      ? ''
+      : timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   }
 
   meetingRows(message: ChatMessage): string[][] {

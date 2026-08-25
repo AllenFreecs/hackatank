@@ -10,13 +10,52 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
   selector: 'app-assistant',
   standalone: true,
   imports: [AiChatComponent],
-  template: '<h1>AI Assistant</h1><app-ai-chat [messages]="messages" [loading]="loading" [suggestions]="suggestions" (sendPrompt)="send($event)" (action)="handleAction($event.action, $event.message)" />',
-  styles: ['h1 { margin: 0 0 1rem; color:#0f2a5f; }']
+  template: `
+    <section class="assistant-page">
+      <header>
+        <h1>AI Assistant</h1>
+        <p>Ask, analyze, and automate with an interactive workspace-style chat.</p>
+      </header>
+
+      <app-ai-chat
+        [messages]="messages"
+        [loading]="loading"
+        [suggestions]="suggestions"
+        (sendPrompt)="send($event)"
+        (action)="handleAction($event.action, $event.message)"
+      />
+    </section>
+  `,
+  styles: [
+    `
+      .assistant-page {
+        display: grid;
+        gap: 1rem;
+      }
+
+      h1 {
+        margin: 0 0 0.35rem;
+        color: var(--app-heading);
+      }
+
+      p {
+        margin: 0;
+        color: var(--app-muted);
+      }
+    `
+  ]
 })
 export class AssistantComponent {
   private readonly destroyRef = inject(DestroyRef);
   loading = false;
-  messages: ChatMessage[] = [];
+  messages: ChatMessage[] = [
+    {
+      id: 1,
+      role: 'assistant',
+      content: 'Welcome. I can help with operations insights, summaries, and task automation. What should we tackle first?',
+      timestamp: new Date().toISOString()
+    }
+  ];
   suggestions = [
     'Show me the departments with the most pending tasks.',
     "Compare this month's sales with last month.",
