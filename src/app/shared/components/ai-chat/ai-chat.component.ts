@@ -10,6 +10,12 @@ import { ChatMessage } from '../../../models/chat-message.model';
 import { DataTableComponent } from '../data-table/data-table.component';
 import { LoadingStateComponent } from '../loading-state/loading-state.component';
 
+interface ChartPoint {
+  label: string;
+  valueLabel: string;
+  height: number;
+}
+
 @Component({
   selector: 'app-ai-chat',
   standalone: true,
@@ -69,5 +75,33 @@ export class AiChatComponent {
       return [];
     }
     return message.meetingSummary.actionItems.map((item) => [item.owner, item.action, item.due]);
+  }
+
+  chartPoints(message: ChatMessage): ChartPoint[] {
+    if (!message.chart) {
+      return [];
+    }
+
+    const maxValue = Math.max(...message.chart.values, 1);
+    return message.chart.labels.map((label, index) => {
+      const value = message.chart?.values[index] ?? 0;
+      return {
+        label,
+        valueLabel: this.formatChartValue(value, message.chart?.unit),
+        height: Math.max((value / maxValue) * 100, 6)
+      };
+    });
+  }
+
+  private formatChartValue(value: number, unit: NonNullable<ChatMessage['chart']>['unit']): string {
+    if (unit === 'currency') {
+      return `₱${(value / 1000000).toFixed(2)}M`;
+    }
+
+    if (unit === 'percent') {
+      return `${value}%`;
+    }
+
+    return value.toLocaleString();
   }
 }

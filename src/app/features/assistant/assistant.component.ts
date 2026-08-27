@@ -1,5 +1,8 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
+import { MatFormFieldModule } from '@angular/material/form-field';
+import { MatSelectModule } from '@angular/material/select';
 import { AiAssistantService } from '../../core/services/ai-assistant.service';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
@@ -9,18 +12,29 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
 @Component({
   selector: 'app-assistant',
   standalone: true,
-  imports: [AiChatComponent],
+  imports: [FormsModule, MatFormFieldModule, MatSelectModule, AiChatComponent],
   template: `
     <section class="assistant-page">
       <header>
-        <h1>AI Assistant</h1>
-        <p>Ask, analyze, and automate with an interactive workspace-style chat.</p>
+        <div>
+          <h1>AI Assistant</h1>
+          <p>Ask, analyze, and automate with an interactive workspace-style chat.</p>
+        </div>
+
+        <mat-form-field appearance="outline" class="preset-field">
+          <mat-label>Assistant preset</mat-label>
+          <mat-select [(ngModel)]="selectedPreset">
+            @for (preset of presets; track preset) {
+              <mat-option [value]="preset">{{ preset }}</mat-option>
+            }
+          </mat-select>
+        </mat-form-field>
       </header>
 
       <app-ai-chat
         [messages]="messages"
         [loading]="loading"
-        [suggestions]="suggestions"
+        [suggestions]="activeSuggestions"
         (sendPrompt)="send($event)"
         (action)="handleAction($event.action, $event.message)"
       />
@@ -33,6 +47,13 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
         gap: 1rem;
       }
 
+      header {
+        display: flex;
+        align-items: flex-start;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+
       h1 {
         margin: 0 0 0.35rem;
         color: var(--app-heading);
@@ -42,12 +63,28 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
         margin: 0;
         color: var(--app-muted);
       }
+
+      .preset-field {
+        width: min(100%, 320px);
+      }
+
+      @media (max-width: 720px) {
+        header {
+          display: grid;
+        }
+
+        .preset-field {
+          width: 100%;
+        }
+      }
     `
   ]
 })
 export class AssistantComponent {
   private readonly destroyRef = inject(DestroyRef);
   loading = false;
+  presets = ['Power BI Workspace', 'Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox'];
+  selectedPreset = this.presets[0];
   messages: ChatMessage[] = [
     {
       id: 1,
@@ -56,17 +93,44 @@ export class AssistantComponent {
       timestamp: new Date().toISOString()
     }
   ];
-  suggestions = [
-    'Show me the departments with the most pending tasks.',
-    "Compare this month's sales with last month.",
-    'Find the latest employee onboarding procedure.',
-    'Summarize this meeting and identify action items.',
-    'Set calendar event for MCP weekly sync tomorrow 10:30 AM.',
-    'Comment on thread with operations status update.',
-    'Lookup related articles in SharePoint about onboarding automation.',
-    'Draft an email about the delayed report.',
-    'What should we automate?'
-  ];
+  suggestionsByPreset: Record<string, string[]> = {
+    'Power BI Workspace': [
+      'Show me the Power BI revenue pipeline and closed-won trend.',
+      'Summarize report exceptions and owners.',
+      'Show me the departments with the most pending tasks.',
+      'What should we automate?'
+    ],
+    'Azure Monitor': [
+      'Show Azure task health by status.',
+      'Chart Azure sprint work by lane.',
+      'Show Azure Power BI monitor metrics.',
+      'Chart Azure bugs by severity.'
+    ],
+    'SharePoint Knowledge Hub': [
+      'Find files related to employee onboarding.',
+      'Show SharePoint files about finance approvals.',
+      'Get document links for procurement info.',
+      'Find support SLA files and links.'
+    ],
+    'Teams Calendar': [
+      'Show Teams activity summary.',
+      'Chart Teams chats by channel.',
+      'Show Teams calendar workload.',
+      'Summarize Teams calls today.',
+      'Show Teams channels engagement.'
+    ],
+    'Outlook Mailbox': [
+      'Show Outlook email priority queue.',
+      'Chart Outlook emails by sender.',
+      'Summarize pending approval emails.',
+      'Draft a follow-up email for overdue approvals.',
+      'Show unread Outlook email workload.'
+    ]
+  };
+
+  get activeSuggestions(): string[] {
+    return this.suggestionsByPreset[this.selectedPreset] ?? [];
+  }
 
   constructor(
     private readonly assistantService: AiAssistantService,

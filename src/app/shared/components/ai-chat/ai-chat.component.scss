@@ -85,6 +85,120 @@
 	margin-bottom: 0;
 }
 
+.figures {
+	display: grid;
+	grid-template-columns: repeat(3, minmax(140px, 1fr));
+	gap: 0.65rem;
+	margin: 0.85rem 0;
+}
+
+.figure {
+	display: grid;
+	gap: 0.18rem;
+	padding: 0.72rem;
+	border-radius: 12px;
+	border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+	background: color-mix(in srgb, var(--app-accent-soft) 18%, #ffffff 82%);
+}
+
+.figure-label,
+.figure-delta,
+.chart-heading,
+.chart-value,
+.chart-label {
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.figure-label,
+.figure-delta {
+	font-size: 0.74rem;
+	color: var(--app-muted);
+}
+
+.figure strong {
+	font-size: 1.18rem;
+	color: var(--app-heading);
+}
+
+.message-chart {
+	margin: 0.85rem 0;
+	padding: 0.82rem;
+	border-radius: 14px;
+	border: 1px solid color-mix(in srgb, var(--app-border) 78%, transparent);
+	background: #fff;
+}
+
+.chart-heading {
+	margin-bottom: 0.72rem;
+	font-size: 0.82rem;
+	font-weight: 700;
+	color: var(--app-heading);
+}
+
+.chart-bars {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(58px, 1fr));
+	gap: 0.58rem;
+	align-items: end;
+}
+
+.chart-column {
+	display: grid;
+	grid-template-rows: auto 118px auto;
+	gap: 0.34rem;
+	min-width: 0;
+	text-align: center;
+}
+
+.chart-value,
+.chart-label {
+	font-size: 0.7rem;
+	color: var(--app-muted);
+}
+
+.chart-track {
+	display: flex;
+	align-items: flex-end;
+	height: 118px;
+	padding: 0.25rem;
+	border-radius: 9px;
+	background: color-mix(in srgb, var(--app-accent-soft) 18%, #ffffff 82%);
+}
+
+.chart-bar {
+	display: block;
+	width: 100%;
+	border-radius: 6px 6px 3px 3px;
+	background: linear-gradient(180deg, color-mix(in srgb, var(--app-accent) 74%, #ffffff 26%), var(--app-accent));
+}
+
+.file-results {
+	display: grid;
+	gap: 0.56rem;
+	margin: 0.85rem 0;
+}
+
+.file-link {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	gap: 0.72rem;
+	align-items: center;
+	padding: 0.72rem;
+	border-radius: 12px;
+	border: 1px solid var(--app-border);
+	color: var(--app-text);
+	text-decoration: none;
+}
+
+.file-link span {
+	display: grid;
+	min-width: 0;
+}
+
+.file-link strong {
+	overflow-wrap: anywhere;
+}
+
 .bubble h4 {
 	margin: 1rem 0 0.5rem;
 	color: var(--app-heading);
@@ -159,5 +273,9 @@
 
 	.composer button {
 		width: 100%;
+	}
+
+	.figures {
+		grid-template-columns: 1fr;
 	}
 }

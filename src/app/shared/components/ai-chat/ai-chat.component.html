@@ -19,6 +19,52 @@
             </div>
             <p>{{ message.content }}</p>
 
+            @if (message.figures?.length) {
+              <div class="figures">
+                @for (figure of message.figures; track figure.label) {
+                  <div class="figure">
+                    <span class="figure-label">{{ figure.label }}</span>
+                    <strong>{{ figure.value }}</strong>
+                    @if (figure.delta) {
+                      <span class="figure-delta">{{ figure.delta }}</span>
+                    }
+                  </div>
+                }
+              </div>
+            }
+
+            @if (message.chart) {
+              <div class="message-chart" [attr.aria-label]="message.chart.title">
+                <div class="chart-heading">{{ message.chart.title }}</div>
+                <div class="chart-bars">
+                  @for (point of chartPoints(message); track point.label) {
+                    <div class="chart-column">
+                      <span class="chart-value">{{ point.valueLabel }}</span>
+                      <span class="chart-track">
+                        <span class="chart-bar" [style.height.%]="point.height"></span>
+                      </span>
+                      <span class="chart-label">{{ point.label }}</span>
+                    </div>
+                  }
+                </div>
+              </div>
+            }
+
+            @if (message.fileLinks?.length) {
+              <div class="file-results">
+                @for (file of message.fileLinks; track file.url) {
+                  <a class="file-link" [href]="file.url" target="_blank" rel="noopener noreferrer">
+                    <mat-icon>description</mat-icon>
+                    <span>
+                      <strong>{{ file.name }}</strong>
+                      <small>{{ file.category }} · {{ file.summary }}</small>
+                    </span>
+                    <mat-icon>open_in_new</mat-icon>
+                  </a>
+                }
+              </div>
+            }
+
             @if (message.table) {
               <app-data-table [columns]="message.table.columns" [rows]="message.table.rows" />
             }
