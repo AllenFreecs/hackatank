@@ -1,13 +1,40 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, delay, of } from 'rxjs';
+import { Observable, catchError, delay, from, map, of } from 'rxjs';
 import { ChatMessage } from '../../models/chat-message.model';
 import { DataService } from './data.service';
 
 @Injectable({ providedIn: 'root' })
 export class AiAssistantService {
-  constructor(private readonly dataService: DataService) {}
+  constructor(private readonly dataService: DataService, private readonly http: HttpClient) {}
 
   respond(prompt: string): Observable<ChatMessage> {
+    if (window.electronApi) {
+      return from(window.electronApi.askAssistant(prompt)).pipe(
+        map((response) => ({
+          id: Date.now(),
+          role: 'assistant' as const,
+          timestamp: new Date().toISOString(),
+          ...response
+        })),
+        catchError(() => this.respondLocally(prompt)),
+        delay(900)
+      );
+    }
+
+    return this.http.post<Pick<ChatMessage, 'content' | 'source'>>('http://127.0.0.1:3001/api/assistant', { prompt }).pipe(
+      map((response) => ({
+        id: Date.now(),
+        role: 'assistant' as const,
+        timestamp: new Date().toISOString(),
+        ...response
+      })),
+      catchError(() => this.respondLocally(prompt)),
+      delay(900)
+    );
+  }
+
+  private respondLocally(prompt: string): Observable<ChatMessage> {
     const lowered = prompt.toLowerCase();
 
     if (lowered.includes('revenue pipeline') || lowered.includes('closed-won trend')) {

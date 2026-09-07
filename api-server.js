@@ -1,10 +1,8 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const http = require('http');
 const dotenv = require('dotenv');
 const path = require('path');
 
-dotenv.config({ path: path.join(__dirname, '../.env') });
-
-const isDev = !app.isPackaged;
+dotenv.config({ path: path.join(__dirname, '.env') });
 
 function azureDevOpsHeaders() {
   const token = process.env.AZURE_DEVOPS_AUTH_TOKEN;
@@ -79,58 +77,26 @@ async function fetchCurrentSprintItems() {
   };
 }
 
-function createWindow() {
-  const win = new BrowserWindow({
-    width: 1440,
-    height: 900,
-    backgroundColor: '#f4f7fc',
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      preload: path.join(__dirname, 'preload.js')
-    }
-  });
-
-  if (isDev) {
-    win.loadURL('http://localhost:4200');
-    return;
-  }
-
-  win.loadFile(path.join(__dirname, '../dist/ai-assistant/browser/index.html'));
-}
-
-ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
-  if (typeof prompt !== 'string' || !prompt.trim()) {
-    throw new Error('A non-empty prompt is required.');
-  }
-
+async function askAzureOpenAI(prompt) {
   const endpoint = process.env.AZURE_OPENAI_ENDPOINT?.replace(/\/$/, '');
   const apiKey = process.env.AZURE_OPENAI_API_KEY;
   const deployment = process.env.AZURE_OPENAI_DEPLOYMENT;
   const apiVersion = process.env.AZURE_OPENAI_API_VERSION;
-
   if (!endpoint || !apiKey || !deployment || !apiVersion || apiKey.startsWith('replace-with-')) {
     throw new Error('Azure OpenAI is not configured in .env.');
   }
 
   let liveContext = '';
   if (/\bsprint\b|work items|backlog/i.test(prompt)) {
-    try {
-      const sprint = await fetchCurrentSprintItems();
-      liveContext = `\nLive Azure DevOps current sprint (${sprint.iteration}):\n${JSON.stringify(sprint.items)}`;
-    } catch (error) {
-      liveContext = `\nAzure DevOps live sprint lookup failed: ${error.message}`;
-    }
+    const sprint = await fetchCurrentSprintItems();
+    liveContext = `\nLive Azure DevOps current sprint (${sprint.iteration}):\n${JSON.stringify(sprint.items)}`;
   }
 
   const response = await fetch(
     `${endpoint}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`,
     {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'api-key': apiKey
-      },
+      headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
       body: JSON.stringify({
         messages: [
           {
@@ -150,8 +116,7 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
     let detail = errorBody;
     try {
       detail = JSON.parse(errorBody).error?.message ?? errorBody;
-    } catch {
-    }
+    } catch {}
     throw new Error(`Azure OpenAI request failed with status ${response.status}: ${detail}`);
   }
 
@@ -160,22 +125,41 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('Azure OpenAI returned an empty response.');
   }
-
   return { content: content.trim(), source: 'Azure OpenAI' };
-});
+}
 
-app.whenReady().then(() => {
-  createWindow();
+const server = http.createServer(async (request, response) => {
+  if (request.method === 'OPTIONS') {
+    response.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' });
+    response.end();
+    return;
+  }
 
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createWindow();
+  if (request.method !== 'POST' || request.url !== '/api/assistant') {
+    response.writeHead(404);
+    response.end();
+    return;
+  }
+
+  let body = '';
+  request.setEncoding('utf8');
+  request.on('data', (chunk) => { body += chunk; });
+  request.on('end', async () => {
+    try {
+      const prompt = JSON.parse(body).prompt;
+      if (typeof prompt !== 'string' || !prompt.trim()) {
+        throw new Error('A non-empty prompt is required.');
+      }
+      const result = await askAzureOpenAI(prompt);
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify({ error: error.message }));
     }
   });
 });
 
-app.on('window-all-closed', () => {
-  if (process.platform !== 'darwin') {
-    app.quit();
-  }
+server.listen(3001, '127.0.0.1', () => {
+  console.log('AI API listening on http://127.0.0.1:3001');
 });
