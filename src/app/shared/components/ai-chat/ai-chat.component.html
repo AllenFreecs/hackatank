@@ -17,7 +17,14 @@
               <span class="dot">•</span>
               <span>{{ timestampLabel(message) }}</span>
             </div>
-            <p>{{ message.content }}</p>
+
+            @if (message.content && !message.table) {
+              <p>{{ message.content }}</p>
+            }
+
+            @if (message.table && message.content) {
+              <p class="table-summary">{{ message.content }}</p>
+            }
 
             @if (message.figures?.length) {
               <div class="figures">

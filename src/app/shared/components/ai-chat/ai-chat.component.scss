@@ -79,6 +79,14 @@
 	margin: 0 0 0.72rem;
 	line-height: 1.52;
 	color: var(--app-text);
+	white-space: pre-wrap;
+	word-break: break-word;
+}
+
+.table-summary {
+	margin-bottom: 0.75rem;
+	color: var(--app-heading);
+	font-weight: 600;
 }
 
 .bubble p:last-of-type {

@@ -17,21 +17,92 @@ function azureDevOpsHeaders() {
   };
 }
 
+function normalizeAssistantText(value) {
+  if (typeof value === 'string') {
+    return value.trim();
+  }
+
+  if (Array.isArray(value)) {
+    const lines = value
+      .map((entry) => normalizeAssistantText(entry))
+      .filter((entry) => entry && entry.trim());
+    return lines.join('\n');
+  }
+
+  if (value && typeof value === 'object') {
+    if ('id' in value && ('title' in value || 'type' in value)) {
+      const id = value.id ?? 'n/a';
+      const type = value.type ?? 'Item';
+      const title = value.title ?? 'Untitled item';
+      const state = value.state ?? 'Unknown';
+      const owner = value.assignedTo ?? value.assignee ?? value.owner ?? 'Unassigned';
+      return `${id} • ${type} • ${title} • ${state} • ${owner}`;
+    }
+
+    const lines = Object.entries(value)
+      .map(([key, entry]) => {
+        const text = normalizeAssistantText(entry);
+        return text ? `${key}: ${text}` : '';
+      })
+      .filter(Boolean);
+
+    return lines.join('\n');
+  }
+
+  return String(value ?? '').trim();
+}
+
+function inferTableFromStructuredContent(value) {
+  if (!Array.isArray(value) || value.length === 0) {
+    return null;
+  }
+
+  const records = value.filter((entry) => entry && typeof entry === 'object' && !Array.isArray(entry));
+  if (records.length === 0) {
+    return null;
+  }
+
+  const keys = Object.keys(records[0]);
+  const hasLikelyRecordShape = keys.some((key) => ['id', 'title', 'type', 'state', 'assignee', 'assignedTo', 'name', 'owner'].includes(key));
+  if (!hasLikelyRecordShape) {
+    return null;
+  }
+
+  const columns = keys.map((key) => key.replace(/([A-Z])/g, ' $1').replace(/^./, (char) => char.toUpperCase()).trim());
+  const rows = records.map((record) => keys.map((key) => {
+    const cell = record[key];
+    if (cell === null || cell === undefined) {
+      return '';
+    }
+    if (typeof cell === 'object') {
+      return normalizeAssistantText(cell);
+    }
+    return String(cell);
+  }));
+
+  return { columns, rows };
+}
+
 function parseAssistantResponse(content, source) {
   try {
     const parsed = JSON.parse(content);
-    if (typeof parsed.content === 'string' && parsed.content.trim()) {
-      const table = parsed.table;
+    const rawContent = parsed.content ?? parsed;
+
+    if (typeof rawContent === 'string' || Array.isArray(rawContent) || (rawContent && typeof rawContent === 'object')) {
+      const normalized = normalizeAssistantText(rawContent);
+      const explicitTable = parsed.table;
+      const inferredTable = explicitTable ? null : inferTableFromStructuredContent(rawContent);
+      const table = explicitTable ?? inferredTable;
       const hasValidTable =
         Array.isArray(table?.columns) &&
         table.columns.every((column) => typeof column === 'string') &&
         Array.isArray(table?.rows) &&
         table.rows.every((row) => Array.isArray(row) && row.every((cell) => typeof cell === 'string'));
-      return { content: parsed.content.trim(), source, ...(hasValidTable ? { table } : {}) };
+      return { content: normalized || content.trim(), source, ...(hasValidTable ? { table } : {}) };
     }
   } catch {}
 
-  return { content: content.trim(), source };
+  return { content: normalizeAssistantText(content) || content.trim(), source };
 }
 
 async function fetchCurrentSprintItems() {
@@ -220,6 +291,10 @@ const server = http.createServer(async (request, response) => {
   });
 });
 
-server.listen(3001, '127.0.0.1', () => {
-  console.log('AI API listening on http://127.0.0.1:3001');
-});
+if (require.main === module) {
+  server.listen(3001, '127.0.0.1', () => {
+    console.log('AI API listening on http://127.0.0.1:3001');
+  });
+}
+
+module.exports = { parseAssistantResponse };
