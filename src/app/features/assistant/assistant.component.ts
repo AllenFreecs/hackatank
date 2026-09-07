@@ -83,7 +83,7 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
 export class AssistantComponent {
   private readonly destroyRef = inject(DestroyRef);
   loading = false;
-  presets = ['Power BI Workspace', 'Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox'];
+  presets = ['Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox'];
   selectedPreset = this.presets[0];
   messages: ChatMessage[] = [
     {
@@ -94,16 +94,10 @@ export class AssistantComponent {
     }
   ];
   suggestionsByPreset: Record<string, string[]> = {
-    'Power BI Workspace': [
-      'Show me the Power BI revenue pipeline and closed-won trend.',
-      'Summarize report exceptions and owners.',
-      'Show me the departments with the most pending tasks.',
-      'What should we automate?'
-    ],
     'Azure Monitor': [
       'Show Azure task health by status.',
       'Chart Azure sprint work by lane.',
-      'Show Azure Power BI monitor metrics.',
+      'Show Azure monitor metrics.',
       'Chart Azure bugs by severity.'
     ],
     'SharePoint Knowledge Hub': [

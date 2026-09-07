@@ -1,7 +1,7 @@
 <section class="dashboard">
   <header>
     <h1>MCP Operations Intelligence Hub</h1>
-    <p>Power BI analytics, Azure monitoring, Teams scheduling, and Outlook approvals in one operational cockpit.</p>
+    <p>Azure monitoring, Teams scheduling, and Outlook approvals in one operational cockpit.</p>
   </header>
 
   <div class="kpis">
@@ -12,36 +12,6 @@
   </div>
 
   <div class="grid">
-    <mat-card class="wtw-panel panel bi-panel">
-      <div class="panel-header">
-        <h3>Power BI Revenue Pipeline</h3>
-        <span class="chip">Real-time Sync</span>
-      </div>
-
-      <div class="bi-graph-wrap">
-        <svg class="chart" viewBox="0 0 430 120" preserveAspectRatio="none" aria-label="Closed-won trend">
-          <polyline class="trend-line" fill="none" stroke-width="3.5" [attr.points]="biLinePoints" />
-        </svg>
-      </div>
-
-      <div class="bi-bars">
-        @for (point of biPerformance; track point.week) {
-          <div class="bar-col">
-            <div class="bar-track">
-              <span class="bar pipeline" [style.height.%]="barHeight(point.pipeline, maxPipeline)"></span>
-              <span class="bar closed" [style.height.%]="barHeight(point.closedWon, maxPipeline)"></span>
-            </div>
-            <p class="bar-label">{{ point.week }}</p>
-          </div>
-        }
-      </div>
-
-      <div class="bi-footnote">
-        <span>Latest closed-won: {{ formatCurrency(biPerformance[biPerformance.length - 1].closedWon) }}</span>
-        <span>Forecast: {{ formatCurrency(biPerformance[biPerformance.length - 1].forecast) }}</span>
-      </div>
-    </mat-card>
-
     <mat-card class="wtw-panel panel connectors-panel">
       <h3>MCP Connector Health</h3>
       <div class="connectors">

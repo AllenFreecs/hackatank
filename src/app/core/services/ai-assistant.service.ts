@@ -22,7 +22,7 @@ export class AiAssistantService {
       );
     }
 
-    return this.http.post<Pick<ChatMessage, 'content' | 'source'>>('http://127.0.0.1:3001/api/assistant', { prompt }).pipe(
+    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table'>>('http://127.0.0.1:3001/api/assistant', { prompt }).pipe(
       map((response) => ({
         id: Date.now(),
         role: 'assistant' as const,
@@ -43,7 +43,7 @@ export class AiAssistantService {
       const previous = performance[performance.length - 2];
 
       return this.reply({
-        content: 'Power BI revenue pipeline is trending upward across the latest six-week workspace snapshot.',
+        content: 'The current operational view shows revenue pipeline momentum across the latest six-week snapshot.',
         figures: [
           { label: 'Pipeline', value: this.formatCurrency(latest.pipeline), delta: this.deltaLabel(latest.pipeline, previous.pipeline) },
           { label: 'Closed-won', value: this.formatCurrency(latest.closedWon), delta: this.deltaLabel(latest.closedWon, previous.closedWon) },
@@ -66,7 +66,7 @@ export class AiAssistantService {
           ])
         },
         insight: `Closed-won revenue improved ${this.deltaLabel(latest.closedWon, performance[0].closedWon).toLowerCase()} from week 1 to week 6.`,
-        source: 'Power BI Workspace'
+        source: 'Operational Dashboard'
       });
     }
 
@@ -75,7 +75,7 @@ export class AiAssistantService {
       const total = rows.reduce((sum, entry) => sum + entry.pending, 0);
 
       return this.reply({
-        content: 'Power BI found the highest exception volume in HR, followed by Finance and Operations.',
+        content: 'The highest exception volume is in HR, followed by Finance and Operations.',
         figures: [
           { label: 'Total exceptions', value: `${total}` },
           { label: 'Highest owner group', value: rows[0].department, delta: `${rows[0].pending} pending` },
@@ -92,7 +92,7 @@ export class AiAssistantService {
           rows: rows.map((entry) => [entry.department, `${entry.pending}`])
         },
         insight: 'HR owns 46% of current pending exceptions, mostly from onboarding report checks.',
-        source: 'Power BI Workspace',
+        source: 'Operational Dashboard',
         actions: ['Create Summary', 'Show Details', 'Create Tasks']
       });
     }
@@ -158,14 +158,14 @@ export class AiAssistantService {
       const averageSla = Math.round(performance.reduce((sum, entry) => sum + entry.sla, 0) / performance.length);
 
       return this.reply({
-        content: 'Azure Monitor is watching Power BI refresh performance, revenue signal health, and SLA stability from the workspace feed.',
+        content: 'Azure Monitor is watching reporting performance, revenue signal health, and SLA stability from the operational feed.',
         figures: [
           { label: 'Latest SLA', value: `${latest.sla}%` },
           { label: 'Avg. SLA', value: `${averageSla}%` },
           { label: 'Latest forecast', value: this.formatCurrency(latest.forecast) }
         ],
         chart: {
-          title: 'Power BI workspace SLA trend',
+          title: 'Operational SLA trend',
           labels: performance.map((entry) => entry.week),
           values: performance.map((entry) => entry.sla),
           unit: 'percent'
@@ -174,7 +174,7 @@ export class AiAssistantService {
           columns: ['Week', 'SLA', 'Forecast', 'Closed-won'],
           rows: performance.map((entry) => [entry.week, `${entry.sla}%`, this.formatCurrency(entry.forecast), this.formatCurrency(entry.closedWon)])
         },
-        insight: 'Power BI SLA is healthy at 99% in the latest week, so revenue reporting risk is low.',
+        insight: 'Current reporting SLA remains healthy at 99% in the latest week, so operational risk is low.',
         source: 'Azure Monitor'
       });
     }
@@ -336,7 +336,7 @@ export class AiAssistantService {
       const longestIndex = durations.indexOf(Math.max(...durations));
 
       return this.reply({
-        content: 'Teams Calendar shows four operational meetings today, with the Power BI capacity review taking the largest block.',
+        content: 'Teams Calendar shows four operational meetings today, with the finance review taking the largest block.',
         figures: [
           { label: 'Meetings today', value: `${events.length}` },
           { label: 'Total focus time', value: `${totalMinutes}m` },
@@ -344,7 +344,7 @@ export class AiAssistantService {
         ],
         chart: {
           title: 'Meeting duration by event',
-          labels: events.map((entry) => entry.title.replace('MCP ', '').replace('Power BI ', '').replace('Outlook ', '')),
+          labels: events.map((entry) => entry.title.replace('MCP ', '').replace('Outlook ', '')),
           values: durations,
           unit: 'number'
         },
@@ -551,7 +551,7 @@ export class AiAssistantService {
     ) {
       return this.reply({
         content:
-          'Drafted a Teams thread update: "Power BI refresh completed, Azure alert triage in progress, and Outlook approvals are queued for sign-off."',
+          'Drafted a Teams thread update: "Operations refresh completed, Azure alert triage in progress, and Outlook approvals are queued for sign-off."',
         actions: ['Post Comment to Thread', 'Set Calendar Event', 'Find Related SharePoint Articles']
       });
     }

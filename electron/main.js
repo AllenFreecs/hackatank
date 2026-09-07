@@ -19,6 +19,23 @@ function azureDevOpsHeaders() {
   };
 }
 
+function parseAssistantResponse(content, source) {
+  try {
+    const parsed = JSON.parse(content);
+    if (typeof parsed.content === 'string' && parsed.content.trim()) {
+      const table = parsed.table;
+      const hasValidTable =
+        Array.isArray(table?.columns) &&
+        table.columns.every((column) => typeof column === 'string') &&
+        Array.isArray(table?.rows) &&
+        table.rows.every((row) => Array.isArray(row) && row.every((cell) => typeof cell === 'string'));
+      return { content: parsed.content.trim(), source, ...(hasValidTable ? { table } : {}) };
+    }
+  } catch {}
+
+  return { content: content.trim(), source };
+}
+
 async function fetchCurrentSprintItems() {
   const orgUrl = process.env.AZURE_DEVOPS_ORG_URL?.replace(/\/$/, '');
   const project = process.env.AZURE_DEVOPS_DEFAULT_PROJECT;
@@ -113,16 +130,23 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
     throw new Error('Azure OpenAI is not configured in .env.');
   }
 
-  let liveContext = '';
-  if (/\bsprint\b|work items|backlog/i.test(prompt)) {
-    try {
-      const sprint = await fetchCurrentSprintItems();
-      liveContext = `\nLive Azure DevOps current sprint (${sprint.iteration}):\n${JSON.stringify(sprint.items)}`;
-    } catch (error) {
-      liveContext = `\nAzure DevOps live sprint lookup failed: ${error.message}`;
+  const messages = [
+    {
+      role: 'system',
+      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. Call get_current_sprint when the user needs live information about the current sprint, work-item state, ownership, delivery progress, backlog, blockers, or bugs. Do not call it for general explanations, drafting, or questions that do not require current Azure DevOps data. When tool results are available, treat them as the source of truth and include item IDs, titles, states, and assignees when relevant. Always return a JSON object with a required content string and an optional table object. Add table with string columns and string-array rows whenever the user asks for a list, records, work items, backlog, bugs, or a comparison. Omit table for a conversational answer.'
+    },
+    { role: 'user', content: prompt }
+  ];
+  const tools = [
+    {
+      type: 'function',
+      function: {
+        name: 'get_current_sprint',
+        description: 'Gets live Azure DevOps work items for the configured team\'s current sprint, including ID, type, title, state, and assignee.',
+        parameters: { type: 'object', properties: {}, additionalProperties: false }
+      }
     }
-  }
-
+  ];
   const response = await fetch(
     `${endpoint}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`,
     {
@@ -132,13 +156,10 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
         'api-key': apiKey
       },
       body: JSON.stringify({
-        messages: [
-          {
-            role: 'system',
-            content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. When live Azure DevOps sprint data is provided, use it as the source of truth and include item IDs, titles, states, and assignees when relevant.'
-          },
-          { role: 'user', content: `${prompt}${liveContext}` }
-        ],
+        messages,
+        tools,
+        tool_choice: 'auto',
+        response_format: { type: 'json_object' },
         temperature: 0.2,
         max_tokens: 800
       })
@@ -156,12 +177,46 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt) => {
   }
 
   const result = await response.json();
-  const content = result.choices?.[0]?.message?.content;
+  const assistantMessage = result.choices?.[0]?.message;
+  const toolCall = assistantMessage?.tool_calls?.find((call) => call.function?.name === 'get_current_sprint');
+  if (toolCall) {
+    let sprint;
+    try {
+      sprint = await fetchCurrentSprintItems();
+    } catch (error) {
+      sprint = { error: error.message };
+    }
+
+    messages.push(assistantMessage, {
+      role: 'tool',
+      tool_call_id: toolCall.id,
+      content: JSON.stringify(sprint)
+    });
+    const followUpResponse = await fetch(
+      `${endpoint}/openai/deployments/${encodeURIComponent(deployment)}/chat/completions?api-version=${encodeURIComponent(apiVersion)}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'api-key': apiKey },
+        body: JSON.stringify({ messages, response_format: { type: 'json_object' }, temperature: 0.2, max_tokens: 800 })
+      }
+    );
+    if (!followUpResponse.ok) {
+      throw new Error(`Azure OpenAI follow-up request failed with status ${followUpResponse.status}.`);
+    }
+    const followUpResult = await followUpResponse.json();
+    const content = followUpResult.choices?.[0]?.message?.content;
+    if (typeof content !== 'string' || !content.trim()) {
+      throw new Error('Azure OpenAI returned an empty response after the Azure DevOps lookup.');
+    }
+    return parseAssistantResponse(content, sprint.error ? 'Azure OpenAI (Azure DevOps unavailable)' : 'Azure OpenAI + Azure DevOps');
+  }
+
+  const content = assistantMessage?.content;
   if (typeof content !== 'string' || !content.trim()) {
     throw new Error('Azure OpenAI returned an empty response.');
   }
 
-  return { content: content.trim(), source: 'Azure OpenAI' };
+  return parseAssistantResponse(content, 'Azure OpenAI');
 });
 
 app.whenReady().then(() => {
