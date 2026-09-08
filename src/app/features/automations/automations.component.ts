@@ -1,11 +1,13 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { AiAssistantService } from '../../core/services/ai-assistant.service';
+import { ChatMessage } from '../../models/chat-message.model';
 import { AutomationDialogComponent, AutomationDialogResult } from './automation-dialog.component';
 
 @Component({
@@ -23,6 +25,13 @@ export class AutomationsComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   automations = this.dataService.getAutomationsSnapshot();
+
+  constructor() {
+    this.runScheduledAutomations();
+    interval(60_000)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe(() => this.runScheduledAutomations());
+  }
 
   createAutomation(): void {
     this.dialog
@@ -90,7 +99,20 @@ export class AutomationsComponent {
             reply.emailDraft?.body ?? reply.content,
             automation.recipient
           );
+          this.dataService.markAutomationRun(item.id);
           this.notificationService.show(`Email file created: ${output}`);
+          return;
+        }
+
+        if (automation) {
+          const output = this.dataService.exportAutomationResponse(
+            automation.id,
+            automation.name,
+            automation.fileType ?? 'pdf',
+            this.formatResponse(reply)
+          );
+          this.dataService.markAutomationRun(item.id);
+          this.notificationService.show(`File created: ${output}`);
           return;
         }
 
@@ -121,5 +143,38 @@ export class AutomationsComponent {
 
   private refresh(): void {
     this.automations = this.dataService.getAutomationsSnapshot();
+  }
+
+  private runScheduledAutomations(): void {
+    this.refresh();
+    this.automations
+      .filter((item) => this.isEnabled(item) && item.aiQuery && this.dataService.isAutomationDue(item))
+      .forEach((item) => this.runNow(item));
+  }
+
+  private formatResponse(message: ChatMessage): string {
+    const sections = [message.content];
+
+    if (message.figures?.length) {
+      sections.push(`Figures:\n${message.figures.map((figure) => `- ${figure.label}: ${figure.value}${figure.delta ? ` (${figure.delta})` : ''}`).join('\n')}`);
+    }
+
+    if (message.chart) {
+      sections.push(`Chart: ${message.chart.title}\n${message.chart.labels.map((label, index) => `${label}: ${message.chart?.values[index] ?? 0}${message.chart?.unit ? ` ${message.chart.unit}` : ''}`).join('\n')}`);
+    }
+
+    if (message.table) {
+      sections.push(`Table:\n${message.table.columns.join(' | ')}\n${message.table.rows.map((row) => row.join(' | ')).join('\n')}`);
+    }
+
+    if (message.insight) {
+      sections.push(`Insight: ${message.insight}`);
+    }
+
+    if (message.source) {
+      sections.push(`Source: ${message.source}`);
+    }
+
+    return sections.filter(Boolean).join('\n\n');
   }
 }

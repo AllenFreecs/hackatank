@@ -9,5 +9,6 @@ export interface Automation {
   fileType?: 'excel' | 'word' | 'pdf';
   outputPath?: string;
   aiQuery?: string;
+  lastRunAt?: string;
   status: 'Enabled' | 'Disabled' | 'Active' | 'Draft';
 }

@@ -11,6 +11,7 @@ import { ChatMessage } from '../../models/chat-message.model';
 import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.component';
 import { EmailDetailsDialogComponent } from './email-details-dialog.component';
 import { ExportDetailsDialogComponent } from './export-details-dialog.component';
+import { AutomationDialogComponent, AutomationDialogResult } from '../automations/automation-dialog.component';
 
 @Component({
   selector: 'app-assistant',
@@ -161,7 +162,7 @@ export class AssistantComponent {
     this.messages = [...this.messages, userMessage];
     this.loading = true;
     if (this.isEmailCommand(prompt) && !this.extractEmailQuery(prompt)) {
-      const pinnedMessage = this.messages.find((message) => message.pinned && message.role === 'assistant');
+      const pinnedMessage = this.getPinnedMessage();
       if (pinnedMessage) {
         this.loading = false;
         this.openEmailDialog(pinnedMessage);
@@ -169,10 +170,18 @@ export class AssistantComponent {
       }
     }
     if (this.isExportCommand(prompt)) {
-      const pinnedMessage = this.messages.find((message) => message.pinned && message.role === 'assistant');
+      const pinnedMessage = this.getPinnedMessage();
       if (pinnedMessage) {
         this.loading = false;
         this.openExportDialog(pinnedMessage);
+        return;
+      }
+    }
+    if (this.isCreateAutomationCommand(prompt)) {
+      const pinnedMessage = this.getPinnedMessage();
+      if (pinnedMessage) {
+        this.loading = false;
+        this.openAutomationDialog(pinnedMessage);
         return;
       }
     }
@@ -198,6 +207,14 @@ export class AssistantComponent {
 
   private isExportCommand(prompt: string): boolean {
     return /^(?:export|download)(?: this)?\s*$/i.test(prompt.trim());
+  }
+
+  private isCreateAutomationCommand(prompt: string): boolean {
+    return /^(?:create|make)(?:\s+an)?\s+automation\s*$/i.test(prompt.trim());
+  }
+
+  private getPinnedMessage(): ChatMessage | undefined {
+    return this.messages.find((message) => message.pinned);
   }
 
   togglePinnedMessage(message: ChatMessage): void {
@@ -287,6 +304,33 @@ export class AssistantComponent {
       });
   }
 
+  private openAutomationDialog(message: ChatMessage): void {
+    this.dialog
+      .open(AutomationDialogComponent, {
+        width: 'min(560px, calc(100vw - 32px))',
+        data: {
+          name: this.defaultAutomationName(message),
+          aiQuery: this.formatMessageForEmail(message),
+          automationType: 'File Creation',
+          fileType: 'pdf'
+        }
+      })
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result?: AutomationDialogResult) => {
+        if (!result) {
+          return;
+        }
+
+        const created = this.dataService.addAutomation({ ...result, status: result.status ?? 'Enabled' });
+        this.notificationService.show(`Automation created: ${created.name}`);
+      });
+  }
+
+  private defaultAutomationName(message: ChatMessage): string {
+    return `${message.source ?? 'Assistant'} automation`;
+  }
+
   private defaultExportFilename(message: ChatMessage): string {
     const source = message.source?.trim() || 'assistant-response';
     return source.replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'assistant-response';
@@ -366,15 +410,7 @@ export class AssistantComponent {
     }
 
     if (action === 'Create Automation') {
-      const created = this.dataService.addAutomation({
-        name: 'Automated onboarding status tracking',
-        trigger: 'Daily 4:00 PM',
-        action: 'Sync onboarding tracker',
-        frequency: 'Daily',
-        recipient: 'hr@company.com',
-        status: 'Enabled'
-      });
-      this.notificationService.show(`Automation created: ${created.name}`);
+      this.openAutomationDialog(message);
       return;
     }
 

@@ -12,13 +12,13 @@
       <mat-card class="wtw-panel automation-card" [class.enabled-card]="isEnabled(item)" [class.disabled-card]="!isEnabled(item)">
         <h3>{{ item.name }}</h3>
         <p><span class="meta-label">Status:</span> <strong>{{ item.status }}</strong></p>
-        <p><span class="meta-label">Type:</span> {{ item.automationType ?? 'File Creation' }}</p>
+        <p><span class="meta-label">Action:</span> {{ item.automationType === 'Email Creation' ? 'Email' : 'File' }}</p>
         <p><span class="meta-label">Frequency:</span> {{ item.frequency }}</p>
-        <p><span class="meta-label">File Type:</span> {{ item.fileType ?? 'pdf' }}</p>
-        <p><span class="meta-label">Trigger:</span> {{ item.trigger }}</p>
-        <p><span class="meta-label">Action:</span> {{ item.action }}</p>
+        @if (item.automationType !== 'Email Creation') {
+          <p><span class="meta-label">File Type:</span> {{ item.fileType ?? 'pdf' }}</p>
+        }
         @if (item.aiQuery) {
-          <p><span class="meta-label">AI Query:</span> {{ item.aiQuery }}</p>
+          <p><span class="meta-label">Query:</span> {{ item.aiQuery }}</p>
         }
         <div class="actions">
           <button mat-button (click)="editAutomation(item.id)">Edit</button>
