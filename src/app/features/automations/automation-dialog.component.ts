@@ -31,7 +31,7 @@ export interface AutomationDialogData {
   standalone: true,
   imports: [MatDialogModule, MatButtonModule, MatFormFieldModule, MatInputModule, MatSelectModule, FormsModule],
   template: `
-    <h2 mat-dialog-title>Create Automation</h2>
+    <h2 mat-dialog-title>Edit Automation</h2>
     <mat-dialog-content>
       <mat-form-field><mat-label>Automation name</mat-label><input matInput [(ngModel)]="form.name" /></mat-form-field>
       <mat-form-field><mat-label>Frequency</mat-label><input matInput [(ngModel)]="form.frequency" placeholder="every 5 minutes, daily, every 2 hours" /></mat-form-field>
@@ -54,7 +54,7 @@ export interface AutomationDialogData {
     </mat-dialog-content>
     <mat-dialog-actions align="end">
       <button mat-button (click)="dialogRef.close()">Cancel</button>
-      <button mat-flat-button color="primary" [disabled]="!form.name.trim() || !form.frequency.trim() || !form.aiQuery?.trim()" (click)="submit()">Create</button>
+      <button mat-flat-button color="primary" [disabled]="!form.name.trim() || !form.frequency.trim() || !form.aiQuery?.trim()" (click)="submit()">Save</button>
     </mat-dialog-actions>
   `,
   styles: ['mat-form-field { display:block; }']

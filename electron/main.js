@@ -462,7 +462,12 @@ function createWindow() {
 
 ipcMain.handle('shell:open-path', async (_event, targetPath) => {
   const { shell } = require('electron');
-  const resolved = targetPath ? path.resolve(targetPath) : path.resolve(__dirname, '../export');
+  const exportRoot = path.resolve(__dirname, '../export');
+  const resolved = targetPath ? path.resolve(__dirname, '..', targetPath) : exportRoot;
+  if (resolved !== exportRoot && !resolved.startsWith(`${exportRoot}${path.sep}`)) {
+    throw new Error('Path is outside the export folder.');
+  }
+  fs.mkdirSync(resolved, { recursive: true });
   return shell.openPath(resolved);
 });
 

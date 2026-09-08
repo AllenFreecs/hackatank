@@ -33,24 +33,6 @@ export class AutomationsComponent {
       .subscribe(() => this.runScheduledAutomations());
   }
 
-  createAutomation(): void {
-    this.dialog
-      .open(AutomationDialogComponent)
-      .afterClosed()
-      .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((result?: AutomationDialogResult) => {
-        if (!result) {
-          return;
-        }
-        this.dataService.addAutomation({
-          ...result,
-          status: result.status ?? 'Enabled'
-        });
-        this.refresh();
-        this.notificationService.show('Automation created.');
-      });
-  }
-
   editAutomation(id: number): void {
     const existing = this.automations.find((item) => item.id === id);
     if (!existing) {
