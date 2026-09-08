@@ -198,6 +198,51 @@
 	background: linear-gradient(180deg, color-mix(in srgb, var(--app-accent) 74%, #ffffff 26%), var(--app-accent));
 }
 
+.chart-pie {
+	display: flex;
+	align-items: center;
+	gap: 1.1rem;
+	flex-wrap: wrap;
+}
+
+.pie {
+	flex: none;
+	width: 148px;
+	height: 148px;
+	border-radius: 50%;
+	box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--app-border) 70%, transparent);
+}
+
+.pie-legend {
+	flex: 1 1 180px;
+	display: grid;
+	gap: 0.42rem;
+	margin: 0;
+	padding: 0;
+	list-style: none;
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.pie-legend li {
+	display: grid;
+	grid-template-columns: auto 1fr auto;
+	align-items: center;
+	gap: 0.5rem;
+	font-size: 0.76rem;
+	color: var(--app-text);
+}
+
+.legend-swatch {
+	width: 10px;
+	height: 10px;
+	border-radius: 3px;
+}
+
+.legend-value {
+	color: var(--app-muted);
+	white-space: nowrap;
+}
+
 .file-results {
 	display: grid;
 	gap: 0.56rem;

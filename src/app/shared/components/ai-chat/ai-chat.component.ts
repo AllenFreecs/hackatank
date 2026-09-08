@@ -1,4 +1,5 @@
 import { Component, ElementRef, EventEmitter, input, Output, ViewChild } from '@angular/core';
+import { DecimalPipe } from '@angular/common';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -15,11 +16,19 @@ interface ChartPoint {
   height: number;
 }
 
+interface PieSlice {
+  label: string;
+  valueLabel: string;
+  percent: number;
+  color: string;
+}
+
 @Component({
   selector: 'app-ai-chat',
   standalone: true,
   imports: [
     FormsModule,
+    DecimalPipe,
     TextFieldModule,
     MatCardModule,
     MatButtonModule,
@@ -32,6 +41,8 @@ interface ChartPoint {
   styleUrl: './ai-chat.component.scss'
 })
 export class AiChatComponent {
+  private static readonly PIE_COLORS = ['#6d28d9', '#2563eb', '#0ea5e9', '#14b8a6', '#f59e0b', '#ef4444', '#8b5cf6'];
+
   messages = input.required<ChatMessage[]>();
   loading = input<boolean>(false);
   suggestions = input.required<string[]>();
@@ -106,6 +117,42 @@ export class AiChatComponent {
         height: Math.max((value / maxValue) * 100, 6)
       };
     });
+  }
+
+  isPieChart(message: ChatMessage): boolean {
+    return message.chart?.type === 'pie';
+  }
+
+  pieSlices(message: ChatMessage): PieSlice[] {
+    if (!message.chart) {
+      return [];
+    }
+
+    const total = message.chart.values.reduce((sum, value) => sum + value, 0);
+    return message.chart.labels.map((label, index) => {
+      const value = message.chart?.values[index] ?? 0;
+      return {
+        label,
+        valueLabel: this.formatChartValue(value, message.chart?.unit),
+        percent: total > 0 ? (value / total) * 100 : 0,
+        color: AiChatComponent.PIE_COLORS[index % AiChatComponent.PIE_COLORS.length]
+      };
+    });
+  }
+
+  pieGradient(message: ChatMessage): string {
+    const slices = this.pieSlices(message);
+    if (!slices.length) {
+      return 'conic-gradient(#e5e7eb 0deg 360deg)';
+    }
+
+    let cursor = 0;
+    const stops = slices.map((slice) => {
+      const start = cursor;
+      cursor += (slice.percent / 100) * 360;
+      return `${slice.color} ${start.toFixed(2)}deg ${cursor.toFixed(2)}deg`;
+    });
+    return `conic-gradient(${stops.join(', ')})`;
   }
 
   private formatChartValue(value: number, unit: NonNullable<ChatMessage['chart']>['unit']): string {

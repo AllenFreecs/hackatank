@@ -6,7 +6,7 @@ declare global {
       askAssistant(
         prompt: string,
         history?: Array<Pick<ChatMessage, 'role' | 'content'>>
-      ): Promise<Pick<ChatMessage, 'content' | 'source'> & Partial<Pick<ChatMessage, 'table' | 'actions'>>>;
+      ): Promise<Pick<ChatMessage, 'content' | 'source'> & Partial<Pick<ChatMessage, 'table' | 'chart' | 'actions'>>>;
     };
   }
 }

@@ -92,6 +92,47 @@ function isValidTable(table) {
   );
 }
 
+function isValidChart(chart) {
+  return (
+    typeof chart?.title === 'string' &&
+    Array.isArray(chart?.labels) &&
+    chart.labels.length > 0 &&
+    chart.labels.every((label) => typeof label === 'string') &&
+    Array.isArray(chart?.values) &&
+    chart.values.length === chart.labels.length &&
+    chart.values.every((value) => typeof value === 'number' && Number.isFinite(value)) &&
+    (chart.type === undefined || chart.type === 'bar' || chart.type === 'pie') &&
+    (chart.unit === undefined || chart.unit === 'number' || chart.unit === 'currency' || chart.unit === 'percent')
+  );
+}
+
+const PIE_CATEGORY_PATTERN = /lane|channel|category|area|team|owner|assignee/i;
+
+// A two-column table of category/count pairs is chart-ready, so render it without a second model call.
+function inferChartFromTable(table) {
+  if (!isValidTable(table) || table.columns.length !== 2 || table.rows.length < 2 || table.rows.length > 12) {
+    return null;
+  }
+
+  const [categoryColumn, valueColumn] = table.columns;
+  if (!/count|total|items|tasks|number|volume/i.test(valueColumn)) {
+    return null;
+  }
+
+  const values = table.rows.map((row) => Number(String(row[1]).replace(/[,\s]/g, '')));
+  if (values.some((value) => !Number.isFinite(value))) {
+    return null;
+  }
+
+  return {
+    title: `${valueColumn} by ${categoryColumn.toLowerCase()}`,
+    labels: table.rows.map((row) => row[0]),
+    values,
+    unit: 'number',
+    type: PIE_CATEGORY_PATTERN.test(categoryColumn) ? 'pie' : 'bar'
+  };
+}
+
 // The model sometimes emits several JSON objects in one reply, so scan for each balanced object.
 function extractJsonObjects(text) {
   const objects = [];
@@ -151,6 +192,7 @@ function parseAssistantResponse(content, source, actions) {
 
   const segments = [];
   let table;
+  let chart;
   for (const payload of payloads) {
     const rawContent = payload?.content ?? payload;
     const normalized = normalizeAssistantText(rawContent);
@@ -164,10 +206,18 @@ function parseAssistantResponse(content, source, actions) {
         table = candidateTable;
       }
     }
+
+    if (!chart && isValidChart(payload?.chart)) {
+      chart = payload.chart;
+    }
+  }
+
+  if (!chart) {
+    chart = inferChartFromTable(table);
   }
 
   if (segments.length) {
-    return { content: segments.join('\n\n'), source, ...(table ? { table } : {}), ...extras };
+    return { content: segments.join('\n\n'), source, ...(table ? { table } : {}), ...(chart ? { chart } : {}), ...extras };
   }
 
   return { content: normalizeAssistantText(raw) || raw, source, ...extras };
@@ -385,7 +435,7 @@ async function askAzureOpenAI(prompt, history) {
   const messages = [
     {
       role: 'system',
-      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. Call get_current_sprint when the user needs live information about the current sprint, work-item state, ownership, delivery progress, backlog, blockers, or bugs. Call update_work_item when the user asks to change a work item status or state, set or rewrite its description, or add a comment or note to it; it needs the numeric work item id, so look the id up with get_current_sprint first when the user refers to an item by title. Never write a work item change without explicit user approval: call update_work_item without confirm first, then state the work item id, its current state, and the exact new state, description, and comment you intend to write, and ask the user to confirm. If any of those details are missing or ambiguous, ask the user for them instead of guessing. Only call update_work_item with confirm set to true after the user has clearly approved that specific change in this conversation. Do not call tools for general explanations, drafting, or questions that do not require current Azure DevOps data. When tool results are available, treat them as the source of truth and include item IDs, titles, states, and assignees when relevant. Always return a JSON object with a required content string and an optional table object. Add table with string columns and string-array rows whenever the user asks for a list, records, work items, backlog, bugs, or a comparison. Omit table for a conversational answer.'
+      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. Call get_current_sprint when the user needs live information about the current sprint, work-item state, ownership, delivery progress, backlog, blockers, or bugs. Call update_work_item when the user asks to change a work item status or state, set or rewrite its description, or add a comment or note to it; it needs the numeric work item id, so look the id up with get_current_sprint first when the user refers to an item by title. Never write a work item change without explicit user approval: call update_work_item without confirm first, then state the work item id, its current state, and the exact new state, description, and comment you intend to write, and ask the user to confirm. If any of those details are missing or ambiguous, ask the user for them instead of guessing. Only call update_work_item with confirm set to true after the user has clearly approved that specific change in this conversation. Do not call tools for general explanations, drafting, or questions that do not require current Azure DevOps data. When tool results are available, treat them as the source of truth and include item IDs, titles, states, and assignees when relevant. Always return a JSON object with a required content string and an optional table object. Add table with string columns and string-array rows whenever the user asks for a list, records, work items, backlog, bugs, or a comparison. Omit table for a conversational answer. Also add an optional chart object with title, labels (strings), values (numbers, same length as labels), unit "number", and type "bar" or "pie" whenever the answer is a breakdown or distribution across categories. Use type "bar" for counts by status, state, or severity, and type "pie" for share across sprint lanes, channels, teams, or owners. Omit chart when there is nothing to compare.'
     },
     ...sanitizeHistory(history),
     { role: 'user', content: prompt }

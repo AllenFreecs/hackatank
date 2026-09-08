@@ -49,17 +49,32 @@
             @if (message.chart) {
               <div class="message-chart" [attr.aria-label]="message.chart.title">
                 <div class="chart-heading">{{ message.chart.title }}</div>
-                <div class="chart-bars">
-                  @for (point of chartPoints(message); track point.label) {
-                    <div class="chart-column">
-                      <span class="chart-value">{{ point.valueLabel }}</span>
-                      <span class="chart-track">
-                        <span class="chart-bar" [style.height.%]="point.height"></span>
-                      </span>
-                      <span class="chart-label">{{ point.label }}</span>
-                    </div>
-                  }
-                </div>
+                @if (isPieChart(message)) {
+                  <div class="chart-pie">
+                    <span class="pie" [style.background]="pieGradient(message)"></span>
+                    <ul class="pie-legend">
+                      @for (slice of pieSlices(message); track slice.label) {
+                        <li>
+                          <span class="legend-swatch" [style.background]="slice.color"></span>
+                          <span class="legend-label">{{ slice.label }}</span>
+                          <span class="legend-value">{{ slice.valueLabel }} · {{ slice.percent | number: '1.0-0' }}%</span>
+                        </li>
+                      }
+                    </ul>
+                  </div>
+                } @else {
+                  <div class="chart-bars">
+                    @for (point of chartPoints(message); track point.label) {
+                      <div class="chart-column">
+                        <span class="chart-value">{{ point.valueLabel }}</span>
+                        <span class="chart-track">
+                          <span class="chart-bar" [style.height.%]="point.height"></span>
+                        </span>
+                        <span class="chart-label">{{ point.label }}</span>
+                      </div>
+                    }
+                  </div>
+                }
               </div>
             }
 

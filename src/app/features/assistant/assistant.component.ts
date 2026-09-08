@@ -92,9 +92,9 @@ export class AssistantComponent {
     'Azure Monitor': [
       'Show Azure task health by status.',
       'Chart Azure sprint work by lane.',
-      'Show Azure monitor metrics.',
-      'Chart Azure bugs by severity.',
-      'Update workitem status and add a comment.'
+      'Chart Azure bugs',
+      'Update workitem status and add a comment.',
+      'Show items user is tagged in.'
     ],
     'SharePoint Knowledge Hub': [
       'Find files related to employee onboarding.',

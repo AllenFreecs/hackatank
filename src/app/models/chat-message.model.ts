@@ -14,6 +14,7 @@ export interface ChatChart {
   labels: string[];
   values: number[];
   unit?: 'currency' | 'number' | 'percent';
+  type?: 'bar' | 'pie';
 }
 
 export interface ChatFileLink {

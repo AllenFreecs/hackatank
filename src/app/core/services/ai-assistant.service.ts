@@ -24,7 +24,7 @@ export class AiAssistantService {
       );
     }
 
-    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table' | 'actions'>>('http://127.0.0.1:3001/api/assistant', { prompt, history }).pipe(
+    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table' | 'chart' | 'actions'>>('http://127.0.0.1:3001/api/assistant', { prompt, history }).pipe(
       map((response) => ({
         id: Date.now(),
         role: 'assistant' as const,
@@ -116,7 +116,8 @@ export class AiAssistantService {
           title: 'Azure task health by status',
           labels: statusCounts.map((entry) => entry.label),
           values: statusCounts.map((entry) => entry.value),
-          unit: 'number'
+          unit: 'number',
+          type: 'bar'
         },
         table: {
           columns: ['Task', 'Owner', 'Department', 'Status'],
@@ -143,7 +144,8 @@ export class AiAssistantService {
           title: 'Sprint work by lane',
           labels: laneCounts.map((entry) => entry.label),
           values: laneCounts.map((entry) => entry.value),
-          unit: 'number'
+          unit: 'number',
+          type: 'pie'
         },
         table: {
           columns: ['Sprint item', 'Owner', 'Tag', 'Lane'],
