@@ -369,6 +369,15 @@ export class DataService {
     return `export/eml/${fileName}`;
   }
 
+  exportAssistantResponse(name: string, type: 'excel' | 'word' | 'pdf', content: string): string {
+    const extension = type === 'excel' ? 'xlsx' : type === 'word' ? 'docx' : 'pdf';
+    const fileName = `${this.slugify(name)}.${extension}`;
+    const outputPath = `export/${type}/${fileName}`;
+    this.persistOutputFile(outputPath, content, 'text/plain', fileName);
+    this.addActivity(`Assistant response exported: ${fileName}`);
+    return outputPath;
+  }
+
   createWorkItemComment(workItemId: string | number, comment: string): string {
     const cleaned = comment.trim();
     if (!cleaned) { return 'No comment was provided for the selected work item.'; }

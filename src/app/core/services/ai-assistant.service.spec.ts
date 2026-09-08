@@ -74,6 +74,14 @@ describe('AiAssistantService', () => {
     );
   });
 
+  it('exports an assistant response with the selected filename and type', () => {
+    const dataService = TestBed.inject<DataService>(DataService);
+    const outputPath = dataService.exportAssistantResponse('Finance Approval Summary', 'excel', 'Approval summary content.');
+
+    expect(outputPath).toBe('export/excel/finance-approval-summary.xlsx');
+    expect(dataService.getActivitiesSnapshot()[0]).toContain('finance-approval-summary.xlsx');
+  });
+
   it('persists created automations to local storage', () => {
     const dataService = TestBed.inject(DataService);
     localStorage.clear();

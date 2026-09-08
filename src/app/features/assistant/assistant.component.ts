@@ -10,6 +10,7 @@ import { NotificationService } from '../../core/services/notification.service';
 import { ChatMessage } from '../../models/chat-message.model';
 import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.component';
 import { EmailDetailsDialogComponent } from './email-details-dialog.component';
+import { ExportDetailsDialogComponent } from './export-details-dialog.component';
 
 @Component({
   selector: 'app-assistant',
@@ -167,6 +168,14 @@ export class AssistantComponent {
         return;
       }
     }
+    if (this.isExportCommand(prompt)) {
+      const pinnedMessage = this.messages.find((message) => message.pinned && message.role === 'assistant');
+      if (pinnedMessage) {
+        this.loading = false;
+        this.openExportDialog(pinnedMessage);
+        return;
+      }
+    }
     const assistantPrompt = this.extractEmailQuery(prompt) ?? prompt;
     this.assistantService
       .respond(assistantPrompt, history)
@@ -185,6 +194,10 @@ export class AssistantComponent {
 
   private isEmailCommand(prompt: string): boolean {
     return /^(?:email me this|send email(?: this)?)\s*[:\-,]?\s*.*$/i.test(prompt.trim());
+  }
+
+  private isExportCommand(prompt: string): boolean {
+    return /^(?:export|download)(?: this)?\s*$/i.test(prompt.trim());
   }
 
   togglePinnedMessage(message: ChatMessage): void {
@@ -254,6 +267,29 @@ export class AssistantComponent {
         const output = this.dataService.simulateSendEmail(result.subject, body, result.recipient);
         this.notificationService.show(`EML file created: ${output}`);
       });
+  }
+
+  private openExportDialog(message: ChatMessage): void {
+    this.dialog
+      .open(ExportDetailsDialogComponent, {
+        width: 'min(520px, calc(100vw - 32px))',
+        data: { filename: this.defaultExportFilename(message) }
+      })
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result?: { filename: string; fileType: 'excel' | 'word' | 'pdf' }) => {
+        if (!result) {
+          return;
+        }
+
+        const output = this.dataService.exportAssistantResponse(result.filename, result.fileType, this.formatMessageForEmail(message));
+        this.notificationService.show(`Response exported: ${output}`);
+      });
+  }
+
+  private defaultExportFilename(message: ChatMessage): string {
+    const source = message.source?.trim() || 'assistant-response';
+    return source.replace(/\.[a-z0-9]+$/i, '').replace(/[^a-z0-9]+/gi, '-').replace(/^-|-$/g, '').toLowerCase() || 'assistant-response';
   }
 
   private extractPromptValue(prompt: string, key: string): string {
