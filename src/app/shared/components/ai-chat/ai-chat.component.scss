@@ -18,6 +18,24 @@
 	overflow: auto;
 }
 
+.thread-header {
+	display: flex;
+	align-items: flex-start;
+	justify-content: space-between;
+	gap: 0.8rem;
+}
+
+.new-chat {
+	flex: none;
+	border-radius: 999px;
+	font-weight: 600;
+
+	mat-icon {
+		margin-right: 0.2rem;
+		color: var(--app-accent);
+	}
+}
+
 .subtitle {
 	margin: 0;
 	color: var(--app-muted);
@@ -250,24 +268,63 @@
 }
 
 .composer {
-	display: flex;
-	align-items: flex-end;
-	gap: 0.8rem;
+	display: grid;
+	gap: 0.5rem;
 	border-radius: 18px;
 	border: 1px solid var(--app-border);
-	background: color-mix(in srgb, var(--app-surface-elevated) 94%, transparent);
+	background: var(--app-surface-elevated);
 	box-shadow: var(--app-card-shadow);
-	padding: 0.45rem 0.72rem;
+	padding: 0.75rem 0.9rem 0.6rem;
 	position: sticky;
 	bottom: 0;
+	cursor: text;
+	transition: border-color 120ms ease, box-shadow 120ms ease;
 }
 
-.composer .mat-mdc-form-field-subscript-wrapper {
-	display: none;
+.composer.focused {
+	border-color: var(--app-accent);
+	box-shadow: 0 0 0 2px color-mix(in srgb, var(--app-accent) 22%, transparent);
 }
 
-.input {
-	flex: 1;
+.composer-input {
+	width: 100%;
+	border: 0;
+	outline: none;
+	resize: none;
+	background: transparent;
+	color: var(--app-text);
+	font: inherit;
+	line-height: 1.55;
+	padding: 0.15rem 0;
+}
+
+.composer-input::placeholder {
+	color: var(--app-muted);
+}
+
+.composer-footer {
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	gap: 0.75rem;
+}
+
+.composer-hint {
+	font-size: 0.72rem;
+	color: var(--app-muted);
+	font-family: 'Manrope', 'Segoe UI', sans-serif;
+}
+
+.send-button {
+	min-width: 0;
+	width: 36px;
+	height: 36px;
+	padding: 0;
+	border-radius: 50%;
+
+	mat-icon {
+		margin: 0;
+	}
 }
 
 .email-body {
@@ -284,13 +341,9 @@
 		width: 100%;
 	}
 
-	.composer {
+	.thread-header {
 		flex-direction: column;
 		align-items: stretch;
-	}
-
-	.composer button {
-		width: 100%;
 	}
 
 	.figures {

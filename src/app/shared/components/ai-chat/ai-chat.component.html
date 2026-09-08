@@ -1,6 +1,12 @@
 <section class="chat-shell">
   <div class="thread-panel">
-    <p class="subtitle">Ask questions, analyze information, find knowledge, and automate repetitive work.</p>
+    <div class="thread-header">
+      <p class="subtitle">Ask questions, analyze information, find knowledge, and automate repetitive work.</p>
+      <button mat-stroked-button class="new-chat" (click)="newChat.emit()">
+        <mat-icon>add</mat-icon>
+        New
+      </button>
+    </div>
 
     <div class="suggestions">
       @for (suggestion of suggestions(); track suggestion) {
@@ -143,22 +149,32 @@
     </div>
   </div>
 
-  <mat-card class="composer">
-    <mat-form-field appearance="outline" class="input">
-      <mat-label>Message AI Assistant</mat-label>
-      <textarea
-        matInput
-        #composerInput
-        cdkTextareaAutosize
-        cdkAutosizeMinRows="1"
-        cdkAutosizeMaxRows="6"
-        [(ngModel)]="draft"
-        (keydown)="onComposerKeydown($event)"
-      ></textarea>
-    </mat-form-field>
-    <button mat-flat-button color="primary" (click)="onSend()">
-      <mat-icon>send</mat-icon>
-      Send
-    </button>
-  </mat-card>
+  <div class="composer" [class.focused]="composerFocused" (click)="focusComposer()">
+    <textarea
+      class="composer-input"
+      #composerInput
+      cdkTextareaAutosize
+      cdkAutosizeMinRows="1"
+      cdkAutosizeMaxRows="10"
+      placeholder="Message AI Assistant"
+      aria-label="Message AI Assistant"
+      [(ngModel)]="draft"
+      (focus)="composerFocused = true"
+      (blur)="composerFocused = false"
+      (keydown)="onComposerKeydown($event)"
+    ></textarea>
+    <div class="composer-footer">
+      <span class="composer-hint">Enter to send · Shift+Enter for a new line</span>
+      <button
+        mat-flat-button
+        color="primary"
+        class="send-button"
+        aria-label="Send message"
+        [disabled]="!draft.trim()"
+        (click)="onSend()"
+      >
+        <mat-icon>send</mat-icon>
+      </button>
+    </div>
+  </div>
 </section>

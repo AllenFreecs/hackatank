@@ -37,6 +37,7 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
         [suggestions]="activeSuggestions"
         (sendPrompt)="send($event)"
         (action)="handleAction($event.action, $event.message)"
+        (newChat)="startNewChat()"
       />
     </section>
   `,
@@ -85,14 +86,8 @@ export class AssistantComponent {
   loading = false;
   presets = ['Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox'];
   selectedPreset = this.presets[0];
-  messages: ChatMessage[] = [
-    {
-      id: 1,
-      role: 'assistant',
-      content: 'Welcome. I can help with operations insights, summaries, and task automation. What should we tackle first?',
-      timestamp: new Date().toISOString()
-    }
-  ];
+  messages: ChatMessage[] = [AssistantComponent.welcomeMessage()];
+
   suggestionsByPreset: Record<string, string[]> = {
     'Azure Monitor': [
       'Show Azure task health by status.',
@@ -125,6 +120,21 @@ export class AssistantComponent {
 
   get activeSuggestions(): string[] {
     return this.suggestionsByPreset[this.selectedPreset] ?? [];
+  }
+
+  private static welcomeMessage(): ChatMessage {
+    return {
+      id: Date.now(),
+      role: 'assistant',
+      content: 'Welcome. I can help with operations insights, summaries, and task automation. What should we tackle first?',
+      timestamp: new Date().toISOString()
+    };
+  }
+
+  startNewChat(): void {
+    this.loading = false;
+    this.messages = [AssistantComponent.welcomeMessage()];
+    this.chat?.focusComposer('');
   }
 
   @ViewChild(AiChatComponent) private readonly chat?: AiChatComponent;

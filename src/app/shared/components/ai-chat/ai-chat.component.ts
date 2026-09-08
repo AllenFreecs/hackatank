@@ -5,7 +5,6 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatIconModule } from '@angular/material/icon';
-import { MatInputModule } from '@angular/material/input';
 import { ChatMessage } from '../../../models/chat-message.model';
 import { DataTableComponent } from '../data-table/data-table.component';
 import { LoadingStateComponent } from '../loading-state/loading-state.component';
@@ -23,7 +22,6 @@ interface ChartPoint {
     FormsModule,
     TextFieldModule,
     MatCardModule,
-    MatInputModule,
     MatButtonModule,
     MatIconModule,
     MatChipsModule,
@@ -39,17 +37,25 @@ export class AiChatComponent {
   suggestions = input.required<string[]>();
 
   draft = '';
+  composerFocused = false;
 
   @ViewChild('composerInput') private readonly composerInput?: ElementRef<HTMLTextAreaElement>;
 
   @Output() sendPrompt = new EventEmitter<string>();
   @Output() action = new EventEmitter<{ action: string; message: ChatMessage }>();
+  @Output() newChat = new EventEmitter<void>();
 
   focusComposer(draft?: string): void {
     if (draft !== undefined) {
       this.draft = draft;
     }
-    this.composerInput?.nativeElement.focus();
+    const element = this.composerInput?.nativeElement;
+    if (!element) {
+      return;
+    }
+    element.focus();
+    const end = element.value.length;
+    element.setSelectionRange(end, end);
   }
 
   onSend(prompt?: string): void {
