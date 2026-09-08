@@ -7,6 +7,8 @@ declare global {
         prompt: string,
         history?: Array<Pick<ChatMessage, 'role' | 'content'>>
       ): Promise<Pick<ChatMessage, 'content' | 'source'> & Partial<Pick<ChatMessage, 'table' | 'chart' | 'actions'>>>;
+      openPath?: (targetPath: string) => Promise<string>;
+      writeExportFile?: (relativePath: string, content: string) => Promise<string>;
     };
   }
 }

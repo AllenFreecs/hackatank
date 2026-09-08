@@ -633,6 +633,11 @@ export class AiAssistantService {
       });
     }
 
+    const automationResult = this.tryCreateAutomationFromPrompt(prompt);
+    if (automationResult) {
+      return automationResult;
+    }
+
     if (lowered.includes('purchase request')) {
       const policy = this.dataService.getPurchaseRequestPolicy();
       return this.reply({
@@ -718,6 +723,66 @@ export class AiAssistantService {
     });
   }
 
+  private tryCreateAutomationFromPrompt(prompt: string): Observable<ChatMessage> | null {
+    const hasAutomationIntent = /automation name|automation type|filetype|file type|frequency|called .*automation|make an automation|make an autoamation/i.test(prompt);
+    if (!hasAutomationIntent) {
+      return null;
+    }
+
+    const name =
+      this.extractPromptValue(prompt, 'Automation name') ||
+      this.extractNaturalLanguageValue(prompt, /called\s+(.+?)(?=\.|\s+Automation Type|\s+Frequency|\s+FileType|\s+File Type|$)/i);
+    const automationType =
+      this.extractPromptValue(prompt, 'Automation Type') ||
+      this.extractNaturalLanguageValue(prompt, /automation type\s*[:\-]?\s*(file creation|email creation)/i);
+    const frequency =
+      this.extractPromptValue(prompt, 'Frequency') ||
+      this.extractNaturalLanguageValue(prompt, /frequency\s*[:\-]?\s*([^.;\n]+)/i) ||
+      this.extractNaturalLanguageValue(prompt, /every\s+\d+\s+(minute|minutes|hour|hours|day|days)/i);
+    const fileType =
+      this.extractPromptValue(prompt, 'FileType') ||
+      this.extractPromptValue(prompt, 'File Type') ||
+      this.extractNaturalLanguageValue(prompt, /filetype\s*[:\-]?\s*(excel|word|pdf)/i) ||
+      this.extractNaturalLanguageValue(prompt, /file type\s*[:\-]?\s*(excel|word|pdf)/i);
+
+    const normalizedType = automationType ? automationType.trim() : '';
+    const normalizedFileType = fileType ? fileType.trim().toLowerCase() : '';
+
+    if (!name || !normalizedType || !frequency) {
+      return this.reply({
+        content:
+          'Before I create the automation, please confirm the details: Automation name, Automation Type, Frequency, and FileType if this is a File Creation automation.',
+        actions: ['Create Automation']
+      });
+    }
+
+    if (normalizedType === 'File Creation' && !['excel', 'word', 'pdf'].includes(normalizedFileType)) {
+      return this.reply({
+        content:
+          'I can create a File Creation automation. Please select the FileType from excel, word, or pdf before I save it.',
+        actions: ['Create Automation']
+      });
+    }
+
+    const saved = this.dataService.addAutomation({
+      name,
+      trigger: frequency,
+      action: normalizedType === 'Email Creation' ? 'Create .eml content' : `Export ${normalizedFileType || 'pdf'} report`,
+      frequency,
+      recipient: normalizedType === 'Email Creation' ? 'user@company.com' : 'operations@company.com',
+      automationType: normalizedType as 'File Creation' | 'Email Creation',
+      fileType: normalizedType === 'Email Creation' ? undefined : (normalizedFileType || 'pdf') as 'excel' | 'word' | 'pdf',
+      aiQuery: prompt,
+      status: 'Enabled'
+    });
+
+    return this.reply({
+      content: `Automation “${saved.name}” has been created and saved for ${saved.frequency}.`,
+      source: 'Automation Manager',
+      actions: ['View Automations']
+    });
+  }
+
   private reply(partial: Omit<ChatMessage, 'id' | 'role' | 'timestamp'>): Observable<ChatMessage> {
     return of({
       id: Date.now(),
@@ -725,6 +790,19 @@ export class AiAssistantService {
       timestamp: new Date().toISOString(),
       ...partial
     }).pipe(delay(900));
+  }
+
+  private extractPromptValue(prompt: string, key: string): string {
+    const match = new RegExp(
+      `${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:\-]\\s*([^\\n.;]+?)(?=(?:\\s*(?:Automation name|Automation Type|Frequency|FileType|File Type|$)))`,
+      'i'
+    ).exec(prompt);
+    return match ? match[1].trim().replace(/[.;]+$/, '') : '';
+  }
+
+  private extractNaturalLanguageValue(prompt: string, pattern: RegExp): string {
+    const match = pattern.exec(prompt);
+    return match ? match[1].trim().replace(/[.;]+$/, '') : '';
   }
 
   private extractLookupTerm(prompt: string): string {

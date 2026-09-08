@@ -28,6 +28,17 @@ h1 {
 	padding: 1.2rem 1.25rem;
 	display: flex;
 	flex-direction: column;
+	border-left: 6px solid var(--app-border);
+}
+
+.automation-card.enabled-card {
+	border-left-color: #2e7d32;
+	background: rgba(46, 125, 50, 0.05);
+}
+
+.automation-card.disabled-card {
+	border-left-color: #d32f2f;
+	background: rgba(211, 47, 47, 0.04);
 }
 
 .automation-card h3 {

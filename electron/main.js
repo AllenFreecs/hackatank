@@ -1,5 +1,6 @@
 const { app, BrowserWindow, ipcMain } = require('electron');
 const dotenv = require('dotenv');
+const fs = require('fs');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '../.env') });
@@ -444,6 +445,28 @@ function createWindow() {
 
   win.loadFile(path.join(__dirname, '../dist/ai-assistant/browser/index.html'));
 }
+
+ipcMain.handle('shell:open-path', async (_event, targetPath) => {
+  const { shell } = require('electron');
+  const resolved = targetPath ? path.resolve(targetPath) : path.resolve(__dirname, '../export');
+  return shell.openPath(resolved);
+});
+
+ipcMain.handle('file:write-export', async (_event, relativePath, content) => {
+  if (typeof relativePath !== 'string' || !relativePath.startsWith('export/') || typeof content !== 'string') {
+    throw new Error('Only text files under the export folder can be written.');
+  }
+
+  const exportRoot = path.resolve(__dirname, '../export');
+  const resolved = path.resolve(__dirname, '..', relativePath);
+  if (resolved !== exportRoot && !resolved.startsWith(`${exportRoot}${path.sep}`)) {
+    throw new Error('Export path is outside the export folder.');
+  }
+
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  fs.writeFileSync(resolved, content, 'utf8');
+  return resolved;
+});
 
 ipcMain.handle('ai-assistant:respond', async (_event, prompt, history) => {
   if (typeof prompt !== 'string' || !prompt.trim()) {

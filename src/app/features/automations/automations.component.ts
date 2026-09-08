@@ -5,6 +5,7 @@ import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { AiAssistantService } from '../../core/services/ai-assistant.service';
 import { AutomationDialogComponent, AutomationDialogResult } from './automation-dialog.component';
 
 @Component({
@@ -16,6 +17,7 @@ import { AutomationDialogComponent, AutomationDialogResult } from './automation-
 })
 export class AutomationsComponent {
   private readonly dataService = inject(DataService);
+  private readonly assistantService = inject(AiAssistantService);
   private readonly dialog = inject(MatDialog);
   private readonly notificationService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
@@ -31,7 +33,10 @@ export class AutomationsComponent {
         if (!result) {
           return;
         }
-        this.dataService.addAutomation(result);
+        this.dataService.addAutomation({
+          ...result,
+          status: result.status ?? 'Enabled'
+        });
         this.refresh();
         this.notificationService.show('Automation created.');
       });
@@ -59,19 +64,59 @@ export class AutomationsComponent {
         if (!result) {
           return;
         }
-        this.dataService.updateAutomation(id, result);
+        this.dataService.updateAutomation(id, {
+          ...result,
+          status: result.status ?? 'Enabled'
+        });
         this.refresh();
         this.notificationService.show('Automation updated.');
       });
   }
 
-  runNow(name: string): void {
-    this.notificationService.show(`${name} executed.`);
+  runNow(item: { id: number; name: string; aiQuery?: string }): void {
+    if (!item.aiQuery) {
+      this.notificationService.show(`No saved AI query found for ${item.name}.`);
+      return;
+    }
+
+    this.assistantService
+      .respond(item.aiQuery)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((reply) => {
+        const automation = this.automations.find((entry) => entry.id === item.id);
+        if (automation?.automationType === 'Email Creation') {
+          const output = this.dataService.simulateSendEmail(
+            reply.emailDraft?.subject ?? automation.name,
+            reply.emailDraft?.body ?? reply.content,
+            automation.recipient
+          );
+          this.notificationService.show(`Email file created: ${output}`);
+          return;
+        }
+
+        this.notificationService.show(`${item.name} executed. ${reply.content.slice(0, 80)}${reply.content.length > 80 ? '...' : ''}`);
+      });
+  }
+
+  openExportFolder(): void {
+    this.dataService.openExportFolder();
+    this.notificationService.show('Opening export folder.');
   }
 
   disable(id: number): void {
-    this.dataService.setAutomationStatus(id, 'Disabled');
+    const current = this.automations.find((item) => item.id === id);
+    this.dataService.setAutomationStatus(id, current?.status === 'Disabled' ? 'Enabled' : 'Disabled');
     this.refresh();
+  }
+
+  delete(id: number): void {
+    this.dataService.deleteAutomation(id);
+    this.refresh();
+    this.notificationService.show('Automation deleted.');
+  }
+
+  isEnabled(item: { status?: string }): boolean {
+    return item.status === 'Enabled' || item.status === 'Active';
   }
 
   private refresh(): void {

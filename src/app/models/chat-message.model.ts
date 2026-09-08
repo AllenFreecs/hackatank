@@ -35,6 +35,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  pinned?: boolean;
   insight?: string;
   source?: string;
   figures?: ChatFigure[];

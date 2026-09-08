@@ -1,6 +1,7 @@
 import { Component, DestroyRef, inject, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 import { AiAssistantService } from '../../core/services/ai-assistant.service';
@@ -8,11 +9,12 @@ import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
 import { ChatMessage } from '../../models/chat-message.model';
 import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.component';
+import { EmailDetailsDialogComponent } from './email-details-dialog.component';
 
 @Component({
   selector: 'app-assistant',
   standalone: true,
-  imports: [FormsModule, MatFormFieldModule, MatSelectModule, AiChatComponent],
+  imports: [FormsModule, MatFormFieldModule, MatSelectModule, MatDialogModule, AiChatComponent],
   template: `
     <section class="assistant-page">
       <header>
@@ -37,6 +39,7 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
         [suggestions]="activeSuggestions"
         (sendPrompt)="send($event)"
         (action)="handleAction($event.action, $event.message)"
+        (pinMessage)="togglePinnedMessage($event)"
         (newChat)="startNewChat()"
       />
     </section>
@@ -142,7 +145,8 @@ export class AssistantComponent {
   constructor(
     private readonly assistantService: AiAssistantService,
     private readonly dataService: DataService,
-    private readonly notificationService: NotificationService
+    private readonly notificationService: NotificationService,
+    private readonly dialog: MatDialog
   ) {}
 
   send(prompt: string): void {
@@ -155,18 +159,152 @@ export class AssistantComponent {
     const history = this.messages.slice(-10).map((message) => ({ role: message.role, content: message.content }));
     this.messages = [...this.messages, userMessage];
     this.loading = true;
+    if (this.isEmailCommand(prompt) && !this.extractEmailQuery(prompt)) {
+      const pinnedMessage = this.messages.find((message) => message.pinned && message.role === 'assistant');
+      if (pinnedMessage) {
+        this.loading = false;
+        this.openEmailDialog(pinnedMessage);
+        return;
+      }
+    }
+    const assistantPrompt = this.extractEmailQuery(prompt) ?? prompt;
     this.assistantService
-      .respond(prompt, history)
+      .respond(assistantPrompt, history)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((reply) => {
         this.messages = [...this.messages, reply];
         this.loading = false;
+        this.maybeHandleAutomationPrompt(prompt, reply);
       });
+  }
+
+  private extractEmailQuery(prompt: string): string | null {
+    const match = /^(?:email me this|send email(?: this)?)\s*[:\-,]?\s*(.+)$/i.exec(prompt.trim());
+    return match?.[1]?.trim() || null;
+  }
+
+  private isEmailCommand(prompt: string): boolean {
+    return /^(?:email me this|send email(?: this)?)\s*[:\-,]?\s*.*$/i.test(prompt.trim());
+  }
+
+  togglePinnedMessage(message: ChatMessage): void {
+    this.messages = this.messages.map((entry) =>
+      entry.id === message.id ? { ...entry, pinned: !entry.pinned } : { ...entry, pinned: false }
+    );
+    this.notificationService.show(message.pinned ? 'Message unpinned.' : 'Message pinned.');
+  }
+
+  private maybeHandleAutomationPrompt(prompt: string, reply: ChatMessage): void {
+    const lower = prompt.toLowerCase();
+    if (!/comment to workitem|reply to workitem|reply this|email me this|send email|make an autoamation|make an automation|automation name|filetype|file type/iu.test(prompt)) {
+      return;
+    }
+
+    const workItemId = this.extractWorkItemReference(prompt) ?? this.extractWorkItemReference(reply.content ?? '') ?? this.extractWorkItemReference(reply.source ?? '');
+    if ((/comment to workitem|reply to workitem|reply this|comment on work item|comment to work item/i.test(prompt) || (/work item/i.test(prompt) && /reply|comment/i.test(prompt))) && workItemId) {
+      const comment = this.extractReplyComment(prompt) || reply.content || 'Follow-up complete.';
+      const result = this.dataService.createWorkItemComment(workItemId, comment);
+      this.notificationService.show(result);
+      return;
+    }
+
+    if (/email me this|send email/i.test(prompt)) {
+      this.openEmailDialog(reply);
+      return;
+    }
+
+    if (/make an autoamation|make an automation/i.test(prompt) || (/automation name/i.test(prompt) && /filetype|file type|frequency/i.test(prompt))) {
+      const automationName = this.extractPromptValue(prompt, 'Automation name');
+      const automationType = this.extractPromptValue(prompt, 'Automation Type') || 'File Creation';
+      const frequency = this.extractPromptValue(prompt, 'Frequency') || 'every 5 minutes';
+      const fileType = this.extractPromptValue(prompt, 'FileType') || this.extractPromptValue(prompt, 'File Type') || 'pdf';
+      const created = this.dataService.addAutomation({
+        name: automationName || 'New scheduled automation',
+        trigger: frequency,
+        action: automationType === 'Email Creation' ? 'Create email content' : `Export ${fileType} report`,
+        frequency,
+        recipient: automationType === 'Email Creation' ? 'user@company.com' : 'operations@company.com',
+        automationType: automationType as 'File Creation' | 'Email Creation',
+        fileType: automationType === 'Email Creation' ? undefined : (fileType.toLowerCase() as 'excel' | 'word' | 'pdf'),
+        aiQuery: prompt,
+        status: 'Enabled'
+      });
+      this.notificationService.show(`Automation created: ${created.name}`);
+    }
+  }
+
+  private openEmailDialog(message: ChatMessage): void {
+    this.dialog
+      .open(EmailDetailsDialogComponent, {
+        width: 'min(620px, calc(100vw - 32px))',
+        data: {
+          recipient: 'user@company.com',
+          subject: message.emailDraft?.subject ?? 'AI Assistant follow-up',
+          body: message.emailDraft?.body ?? this.formatMessageForEmail(message)
+        }
+      })
+      .afterClosed()
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((result?: { recipient: string; subject: string }) => {
+        if (!result) {
+          return;
+        }
+
+        const body = message.emailDraft?.body ?? this.formatMessageForEmail(message);
+        const output = this.dataService.simulateSendEmail(result.subject, body, result.recipient);
+        this.notificationService.show(`EML file created: ${output}`);
+      });
+  }
+
+  private extractPromptValue(prompt: string, key: string): string {
+    const escapedKey = key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const match = new RegExp(`${escapedKey}\s*[:\\-]\s*([^\\n.;]+)`, 'i').exec(prompt);
+    return match ? match[1].trim() : '';
+  }
+
+  private extractWorkItemReference(text: string): string | null {
+    const match = /(?:workitem|work item)\s*#?(\d+)/i.exec(text ?? '');
+    return match ? match[1] : null;
+  }
+
+  private extractReplyComment(text: string): string {
+    const match = /(?:comment to workitem|reply to workitem|reply this|comment on work item|comment to work item)\s*(?:#?\d+)?\s*[:\-]?\s*(.+)$/i.exec(text ?? '');
+    if (match?.[1]) {
+      return match[1].trim();
+    }
+
+    const fallback = /(?:reply|comment)\s+(?:to|on)\s+(?:workitem|work item)\s*(?:#?\d+)?\s*[:\-]?\s*(.+)$/i.exec(text ?? '');
+    return fallback?.[1]?.trim() ?? '';
   }
 
   handleAction(action: string, message: ChatMessage): void {
     if (action === 'Proceed updating') {
       this.send('Yes, proceed with that update exactly as described.');
+      return;
+    }
+
+    if (action === 'Reply to Work Item') {
+      const workItemId = this.extractWorkItemReference(message.source ?? '') ?? this.extractWorkItemReference(message.content ?? '') ?? 'selected work item';
+      const comment = this.extractReplyComment(message.content ?? '') || 'Follow-up complete.';
+      const result = this.dataService.createWorkItemComment(workItemId, comment);
+      this.notificationService.show(result);
+      return;
+    }
+
+    if (action === 'Create Email File') {
+      this.openEmailDialog(message);
+      return;
+    }
+
+    if (action === 'Create Automation from Prompt') {
+      const created = this.dataService.addAutomation({
+        name: message.content || 'Scheduled automation',
+        frequency: 'every 5 minutes',
+        automationType: 'File Creation',
+        fileType: 'pdf',
+        status: 'Enabled'
+      });
+      this.notificationService.show(`Automation created: ${created.name}`);
       return;
     }
 
@@ -187,20 +325,20 @@ export class AssistantComponent {
     }
 
     if (action === 'Send' && message.emailDraft) {
-      this.dataService.simulateSendEmail(message.emailDraft.subject);
-      this.notificationService.show('Email prepared successfully.');
+      this.openEmailDialog(message);
       return;
     }
 
     if (action === 'Create Automation') {
-      this.dataService.addAutomation({
+      const created = this.dataService.addAutomation({
         name: 'Automated onboarding status tracking',
         trigger: 'Daily 4:00 PM',
         action: 'Sync onboarding tracker',
         frequency: 'Daily',
-        recipient: 'hr@company.com'
+        recipient: 'hr@company.com',
+        status: 'Enabled'
       });
-      this.notificationService.show('Automation created: Automated onboarding status tracking.');
+      this.notificationService.show(`Automation created: ${created.name}`);
       return;
     }
 
@@ -238,5 +376,31 @@ export class AssistantComponent {
     }
 
     this.notificationService.show(`${action} completed.`);
+  }
+
+  private formatMessageForEmail(message: ChatMessage): string {
+    const sections = [message.content];
+
+    if (message.figures?.length) {
+      sections.push(`Figures:\n${message.figures.map((figure) => `- ${figure.label}: ${figure.value}${figure.delta ? ` (${figure.delta})` : ''}`).join('\n')}`);
+    }
+
+    if (message.chart) {
+      sections.push(`Chart: ${message.chart.title}\n${message.chart.labels.map((label, index) => `${label}: ${message.chart?.values[index] ?? 0}${message.chart?.unit ? ` ${message.chart.unit}` : ''}`).join('\n')}`);
+    }
+
+    if (message.table) {
+      sections.push(`Table:\n${message.table.columns.join(' | ')}\n${message.table.rows.map((row) => row.join(' | ')).join('\n')}`);
+    }
+
+    if (message.insight) {
+      sections.push(`Insight: ${message.insight}`);
+    }
+
+    if (message.source) {
+      sections.push(`Source: ${message.source}`);
+    }
+
+    return sections.join('\n\n');
   }
 }

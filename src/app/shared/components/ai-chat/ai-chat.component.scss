@@ -93,6 +93,17 @@
 	opacity: 0.5;
 }
 
+.pin-button {
+	width: 28px;
+	height: 28px;
+	margin-left: auto;
+	color: var(--app-muted);
+
+	&.pinned {
+		color: var(--app-accent);
+	}
+}
+
 .bubble p {
 	margin: 0 0 0.72rem;
 	line-height: 1.52;

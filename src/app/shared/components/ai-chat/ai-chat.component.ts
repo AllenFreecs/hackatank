@@ -54,6 +54,7 @@ export class AiChatComponent {
 
   @Output() sendPrompt = new EventEmitter<string>();
   @Output() action = new EventEmitter<{ action: string; message: ChatMessage }>();
+  @Output() pinMessage = new EventEmitter<ChatMessage>();
   @Output() newChat = new EventEmitter<void>();
 
   focusComposer(draft?: string): void {

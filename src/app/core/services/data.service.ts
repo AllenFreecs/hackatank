@@ -86,6 +86,10 @@ interface OutlookQueueItem {
   received: string;
 }
 
+interface EmailFileRecord { id: number; name: string; content: string; createdAt: string; }
+interface GeneratedArtifactRecord { id: number; automationId: number; name: string; outputPath: string; type: 'excel' | 'word' | 'pdf'; createdAt: string; }
+interface WorkItemCommentRecord { id: number; workItemId: string; comment: string; createdAt: string; }
+
 @Injectable({ providedIn: 'root' })
 export class DataService {
   private readonly seed = {
@@ -120,6 +124,9 @@ export class DataService {
   private readonly automationsSubject = new BehaviorSubject<Automation[]>([]);
   private readonly teamsCalendarSubject = new BehaviorSubject<TeamsCalendarEvent[]>([]);
   private readonly activitySubject = new BehaviorSubject<string[]>([]);
+  private readonly emailFilesSubject = new BehaviorSubject<EmailFileRecord[]>([]);
+  private readonly generatedArtifactsSubject = new BehaviorSubject<GeneratedArtifactRecord[]>([]);
+  private readonly workItemCommentsSubject = new BehaviorSubject<WorkItemCommentRecord[]>([]);
 
   tasks$ = this.tasksSubject.asObservable();
   reports$ = this.reportsSubject.asObservable();
@@ -139,7 +146,7 @@ export class DataService {
     this.meetingsSubject.next(this.clone(this.seed.meetings));
     this.salesSubject.next(this.clone(this.seed.sales));
     this.departmentsSubject.next(this.clone(this.seed.departments));
-    this.automationsSubject.next(this.clone(this.seed.automations));
+    this.automationsSubject.next(this.readPersistedAutomations());
     this.teamsCalendarSubject.next(this.clone(this.seed.teamsCalendar));
     this.activitySubject.next(this.clone(this.seed.activities));
   }
@@ -296,27 +303,36 @@ export class DataService {
     );
   }
 
-  addAutomation(input: Omit<Automation, 'id' | 'status'>): void {
+  addAutomation(input: Omit<Automation, 'id'>): Automation {
     const nextId = Math.max(...this.automationsSubject.value.map((item) => item.id), 0) + 1;
-    const automation: Automation = { ...input, id: nextId, status: 'Draft' };
-    this.automationsSubject.next([...this.automationsSubject.value, automation]);
+    const fileType = input.automationType === 'Email Creation' ? undefined : input.fileType ?? 'pdf';
+    const automation: Automation = { ...input, id: nextId, trigger: input.trigger ?? 'Scheduled report generation', action: input.action ?? `Export ${fileType ?? 'pdf'} report`, recipient: input.recipient ?? 'user@company.com', fileType, aiQuery: input.aiQuery ?? '', status: input.status ?? 'Enabled' };
+    if (input.automationType === 'File Creation' || fileType) {
+      automation.outputPath = this.createGeneratedArtifact(nextId, automation.name, fileType as 'excel' | 'word' | 'pdf', automation.frequency);
+    }
+    const nextAutomations = [...this.automationsSubject.value, automation];
+    this.automationsSubject.next(nextAutomations);
+    this.persistAutomations(nextAutomations);
     this.addActivity(`Automation created: ${automation.name}`);
+    return automation;
   }
 
   setAutomationStatus(id: number, status: Automation['status']): void {
-    this.automationsSubject.next(
-      this.automationsSubject.value.map((automation) =>
-        automation.id === id ? { ...automation, status } : automation
-      )
-    );
+    const nextAutomations = this.automationsSubject.value.map((automation) => automation.id === id ? { ...automation, status } : automation);
+    this.automationsSubject.next(nextAutomations);
+    this.persistAutomations(nextAutomations);
   }
 
-  updateAutomation(id: number, updates: Omit<Automation, 'id' | 'status'>): void {
-    this.automationsSubject.next(
-      this.automationsSubject.value.map((automation) =>
-        automation.id === id ? { ...automation, ...updates } : automation
-      )
-    );
+  deleteAutomation(id: number): void {
+    const nextAutomations = this.automationsSubject.value.filter((automation) => automation.id !== id);
+    this.automationsSubject.next(nextAutomations);
+    this.persistAutomations(nextAutomations);
+  }
+
+  updateAutomation(id: number, updates: Omit<Automation, 'id'>): void {
+    const nextAutomations = this.automationsSubject.value.map((automation) => automation.id === id ? { ...automation, ...updates } : automation);
+    this.automationsSubject.next(nextAutomations);
+    this.persistAutomations(nextAutomations);
     this.addActivity(`Automation updated: ${updates.name}`);
   }
 
@@ -340,8 +356,26 @@ export class DataService {
     };
   }
 
-  simulateSendEmail(subject: string): void {
+  simulateSendEmail(subject: string, body = '', recipient = 'user@company.com'): string {
+    const cleanSubject = this.cleanEmailHeader(subject || 'AI Assistant follow-up');
+    const cleanRecipient = this.cleanEmailHeader(recipient || 'user@company.com');
+    const emailBody = body || 'This message was drafted from the assistant.';
+    const boundary = `=_AI_ASSISTANT_${Date.now()}`;
+    const message = [`To: ${cleanRecipient}`, `Subject: ${cleanSubject}`, 'MIME-Version: 1.0', `Content-Type: multipart/alternative; boundary="${boundary}"`, '', `--${boundary}`, 'Content-Type: text/plain; charset="UTF-8"', '', emailBody, '', `--${boundary}`, 'Content-Type: text/html; charset="UTF-8"', '', this.emailBodyToHtml(emailBody), '', `--${boundary}--`].join('\r\n');
+    const fileName = `${this.slugify(cleanSubject)}.eml`;
+    this.emailFilesSubject.next([{ id: Date.now(), name: fileName, content: message, createdAt: new Date().toISOString() }, ...this.emailFilesSubject.value].slice(0, 12));
+    this.persistOutputFile(`export/eml/${fileName}`, message, 'message/rfc822', fileName);
     this.addActivity(`Email prepared successfully: ${subject}`);
+    return `export/eml/${fileName}`;
+  }
+
+  createWorkItemComment(workItemId: string | number, comment: string): string {
+    const cleaned = comment.trim();
+    if (!cleaned) { return 'No comment was provided for the selected work item.'; }
+    const entry: WorkItemCommentRecord = { id: Date.now(), workItemId: String(workItemId), comment: cleaned, createdAt: new Date().toISOString() };
+    this.workItemCommentsSubject.next([entry, ...this.workItemCommentsSubject.value].slice(0, 20));
+    this.addActivity(`Work item comment added: ${entry.workItemId}`);
+    return `Comment added to work item ${entry.workItemId}.`;
   }
 
   createTasksFromMeeting(): void {
@@ -377,6 +411,13 @@ export class DataService {
     return this.clone(this.automationsSubject.value);
   }
 
+  getEmailFilesSnapshot(): EmailFileRecord[] { return this.clone(this.emailFilesSubject.value); }
+
+  openExportFolder(folderName?: string): void {
+    const targetFolder = folderName ? `export/${folderName}` : 'export';
+    if (typeof window !== 'undefined' && window.electronApi?.openPath) { window.electronApi.openPath(targetFolder).catch(() => undefined); }
+  }
+
   getActivitiesSnapshot(): string[] {
     return this.clone(this.activitySubject.value);
   }
@@ -384,6 +425,28 @@ export class DataService {
   private addActivity(message: string): void {
     this.activitySubject.next([message, ...this.activitySubject.value].slice(0, 8));
   }
+
+  private createGeneratedArtifact(automationId: number, name: string, type: 'excel' | 'word' | 'pdf', frequency: string): string {
+    const extension = type === 'excel' ? 'xlsx' : type === 'word' ? 'docx' : 'pdf';
+    const fileName = `${this.slugify(name)}.${extension}`;
+    const outputPath = `export/${type}/${fileName}`;
+    this.persistOutputFile(outputPath, `Generated by AI Assistant\n\nName: ${name}\nType: ${type}\nFrequency: ${frequency}\n`, 'text/plain');
+    this.generatedArtifactsSubject.next([{ id: Date.now(), automationId, name: fileName, outputPath, type, createdAt: new Date().toISOString() }, ...this.generatedArtifactsSubject.value].slice(0, 25));
+    return outputPath;
+  }
+
+  private persistAutomations(automations: Automation[]): void { try { globalThis.localStorage?.setItem('hackatank.automations', JSON.stringify(automations)); } catch {} }
+  private readPersistedAutomations(): Automation[] { try { const saved = globalThis.localStorage?.getItem('hackatank.automations'); const parsed = saved ? JSON.parse(saved) : []; return Array.isArray(parsed) ? parsed : []; } catch { return []; } }
+  private persistOutputFile(outputPath: string, content: string, mimeType: string, downloadName?: string): void {
+    if (typeof window !== 'undefined' && window.electronApi?.writeExportFile) { window.electronApi.writeExportFile(outputPath, content).catch(() => undefined); return; }
+    if (typeof fetch === 'function') { fetch('http://127.0.0.1:3001/api/export', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ relativePath: outputPath, content }) }).then((response) => { if (!response.ok) { throw new Error('Export failed.'); } }).catch(() => this.downloadOutputFile(outputPath, content, mimeType, downloadName)); return; }
+    this.downloadOutputFile(outputPath, content, mimeType, downloadName);
+  }
+  private downloadOutputFile(outputPath: string, content: string, mimeType: string, downloadName?: string): void { if (typeof document === 'undefined') { return; } const objectUrl = URL.createObjectURL(new Blob([content], { type: mimeType })); const anchor = document.createElement('a'); anchor.href = objectUrl; anchor.download = downloadName ?? outputPath.split('/').pop() ?? 'generated-file'; anchor.click(); URL.revokeObjectURL(objectUrl); }
+  private emailBodyToHtml(body: string): string { return `<html><body style="font-family:Segoe UI,Arial,sans-serif;color:#243047;"><div style="max-width:680px;margin:auto;padding:24px;border:1px solid #d9deea;border-radius:12px;">${this.escapeHtml(body).replace(/\r?\n/g, '<br>')}</div></body></html>`; }
+  private cleanEmailHeader(value: string): string { return value.replace(/[\r\n]+/g, ' ').trim(); }
+  private escapeHtml(value: string): string { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+  private slugify(value: string): string { return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'assistant-email'; }
 
   private clone<T>(value: T): T {
     return structuredClone(value);

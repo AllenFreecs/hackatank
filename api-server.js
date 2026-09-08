@@ -1,5 +1,6 @@
 const http = require('http');
 const dotenv = require('dotenv');
+const fs = require('fs');
 const path = require('path');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
@@ -512,6 +513,35 @@ const server = http.createServer(async (request, response) => {
   if (request.method === 'OPTIONS') {
     response.writeHead(204, { 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type' });
     response.end();
+    return;
+  }
+
+  if (request.method === 'POST' && request.url === '/api/export') {
+    let exportBody = '';
+    request.setEncoding('utf8');
+    request.on('data', (chunk) => { exportBody += chunk; });
+    request.on('end', () => {
+      try {
+        const payload = JSON.parse(exportBody);
+        if (typeof payload.relativePath !== 'string' || !payload.relativePath.startsWith('export/') || typeof payload.content !== 'string') {
+          throw new Error('Only text files under the export folder can be written.');
+        }
+
+        const exportRoot = path.resolve(__dirname, 'export');
+        const resolved = path.resolve(__dirname, payload.relativePath);
+        if (resolved !== exportRoot && !resolved.startsWith(`${exportRoot}${path.sep}`)) {
+          throw new Error('Export path is outside the export folder.');
+        }
+
+        fs.mkdirSync(path.dirname(resolved), { recursive: true });
+        fs.writeFileSync(resolved, payload.content, 'utf8');
+        response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        response.end(JSON.stringify({ path: resolved }));
+      } catch (error) {
+        response.writeHead(400, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+        response.end(JSON.stringify({ error: error.message }));
+      }
+    });
     return;
   }
 

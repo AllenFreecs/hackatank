@@ -22,6 +22,16 @@
               <span>{{ roleLabel(message) }}</span>
               <span class="dot">•</span>
               <span>{{ timestampLabel(message) }}</span>
+              <button
+                mat-icon-button
+                class="pin-button"
+                [class.pinned]="message.pinned"
+                [attr.aria-label]="message.pinned ? 'Unpin message' : 'Pin message'"
+                [title]="message.pinned ? 'Unpin message' : 'Pin message'"
+                (click)="pinMessage.emit(message)"
+              >
+                <mat-icon>{{ message.pinned ? 'push_pin' : 'push_pin_outlined' }}</mat-icon>
+              </button>
             </div>
 
             @if (message.content && !message.table) {
