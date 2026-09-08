@@ -1,4 +1,4 @@
-import { Component, DestroyRef, inject } from '@angular/core';
+import { Component, DestroyRef, inject, ViewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -98,7 +98,8 @@ export class AssistantComponent {
       'Show Azure task health by status.',
       'Chart Azure sprint work by lane.',
       'Show Azure monitor metrics.',
-      'Chart Azure bugs by severity.'
+      'Chart Azure bugs by severity.',
+      'Update workitem status and add a comment.'
     ],
     'SharePoint Knowledge Hub': [
       'Find files related to employee onboarding.',
@@ -126,6 +127,8 @@ export class AssistantComponent {
     return this.suggestionsByPreset[this.selectedPreset] ?? [];
   }
 
+  @ViewChild(AiChatComponent) private readonly chat?: AiChatComponent;
+
   constructor(
     private readonly assistantService: AiAssistantService,
     private readonly dataService: DataService,
@@ -139,10 +142,11 @@ export class AssistantComponent {
       content: prompt,
       timestamp: new Date().toISOString()
     };
+    const history = this.messages.slice(-10).map((message) => ({ role: message.role, content: message.content }));
     this.messages = [...this.messages, userMessage];
     this.loading = true;
     this.assistantService
-      .respond(prompt)
+      .respond(prompt, history)
       .pipe(takeUntilDestroyed(this.destroyRef))
       .subscribe((reply) => {
         this.messages = [...this.messages, reply];
@@ -151,6 +155,21 @@ export class AssistantComponent {
   }
 
   handleAction(action: string, message: ChatMessage): void {
+    if (action === 'Proceed updating') {
+      this.send('Yes, proceed with that update exactly as described.');
+      return;
+    }
+
+    if (action === 'Let me edit the information again') {
+      this.chat?.focusComposer('Change the update to: ');
+      return;
+    }
+
+    if (action === 'Custom answer') {
+      this.chat?.focusComposer('');
+      return;
+    }
+
     if (action === 'Create Tasks') {
       this.dataService.createTasksFromMeeting();
       this.notificationService.show('Tasks created from AI recommendation.');

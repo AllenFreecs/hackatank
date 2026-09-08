@@ -1,4 +1,4 @@
-import { Component, EventEmitter, input, Output } from '@angular/core';
+import { Component, ElementRef, EventEmitter, input, Output, ViewChild } from '@angular/core';
 import { TextFieldModule } from '@angular/cdk/text-field';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -40,8 +40,17 @@ export class AiChatComponent {
 
   draft = '';
 
+  @ViewChild('composerInput') private readonly composerInput?: ElementRef<HTMLTextAreaElement>;
+
   @Output() sendPrompt = new EventEmitter<string>();
   @Output() action = new EventEmitter<{ action: string; message: ChatMessage }>();
+
+  focusComposer(draft?: string): void {
+    if (draft !== undefined) {
+      this.draft = draft;
+    }
+    this.composerInput?.nativeElement.focus();
+  }
 
   onSend(prompt?: string): void {
     const text = (prompt ?? this.draft).trim();

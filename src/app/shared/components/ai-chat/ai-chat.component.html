@@ -122,7 +122,10 @@
             @if (message.actions?.length) {
               <div class="actions">
                 @for (item of message.actions; track item) {
-                  <button mat-button (click)="action.emit({ action: item, message })">{{ item }}</button>
+                  <button mat-stroked-button class="quick-reply" (click)="action.emit({ action: item, message })">
+                    <mat-icon>chevron_right</mat-icon>
+                    {{ item }}
+                  </button>
                 }
               </div>
             }
@@ -145,6 +148,7 @@
       <mat-label>Message AI Assistant</mat-label>
       <textarea
         matInput
+        #composerInput
         cdkTextareaAutosize
         cdkAutosizeMinRows="1"
         cdkAutosizeMaxRows="6"

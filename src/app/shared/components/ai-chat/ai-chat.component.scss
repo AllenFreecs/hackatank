@@ -227,6 +227,16 @@
 	border-top: 1px solid color-mix(in srgb, var(--app-border) 75%, transparent);
 }
 
+.quick-reply {
+	border-radius: 999px;
+	font-weight: 500;
+
+	mat-icon {
+		margin-right: 0.15rem;
+		color: var(--app-accent);
+	}
+}
+
 .insight {
 	color: var(--app-heading);
 }

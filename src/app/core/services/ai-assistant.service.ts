@@ -4,13 +4,15 @@ import { Observable, catchError, delay, from, map, of } from 'rxjs';
 import { ChatMessage } from '../../models/chat-message.model';
 import { DataService } from './data.service';
 
+export type AssistantHistoryEntry = Pick<ChatMessage, 'role' | 'content'>;
+
 @Injectable({ providedIn: 'root' })
 export class AiAssistantService {
   constructor(private readonly dataService: DataService, private readonly http: HttpClient) {}
 
-  respond(prompt: string): Observable<ChatMessage> {
+  respond(prompt: string, history: AssistantHistoryEntry[] = []): Observable<ChatMessage> {
     if (window.electronApi) {
-      return from(window.electronApi.askAssistant(prompt)).pipe(
+      return from(window.electronApi.askAssistant(prompt, history)).pipe(
         map((response) => ({
           id: Date.now(),
           role: 'assistant' as const,
@@ -22,7 +24,7 @@ export class AiAssistantService {
       );
     }
 
-    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table'>>('http://127.0.0.1:3001/api/assistant', { prompt }).pipe(
+    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table' | 'actions'>>('http://127.0.0.1:3001/api/assistant', { prompt, history }).pipe(
       map((response) => ({
         id: Date.now(),
         role: 'assistant' as const,
