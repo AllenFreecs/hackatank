@@ -49,6 +49,13 @@ test('parses a fenced JSON reply and keeps its table', () => {
   assert.equal(response.table.rows[0][0], '205283');
 });
 
+test('does not expose truncated JSON as the assistant message', () => {
+  const response = parseAssistantResponse('{"content":"Current sprint items.","table":{"columns":["ID"],"rows":[["205283"]', 'Azure OpenAI');
+
+  assert.doesNotMatch(response.content, /^\{"content"/);
+  assert.match(response.content, /Current sprint items/);
+});
+
 test('exposes the work item update tool to the assistant', () => {
   const tool = assistantTools.find((entry) => entry.function.name === 'update_work_item');
   assert.ok(tool);

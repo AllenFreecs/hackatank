@@ -175,6 +175,19 @@ function extractJsonObjects(text) {
   return objects;
 }
 
+function extractPartialContent(text) {
+  const match = /"content"\s*:\s*"((?:\\.|[^"\\])*)/.exec(text);
+  if (!match) {
+    return '';
+  }
+
+  try {
+    return JSON.parse(`"${match[1]}"`);
+  } catch {
+    return match[1].replace(/\\n/g, '\n').replace(/\\"/g, '"').replace(/\\\\/g, '\\');
+  }
+}
+
 function parseAssistantResponse(content, source, actions) {
   const raw = typeof content === 'string' ? content.trim() : String(content ?? '').trim();
   const unfenced = raw.replace(/^```(?:json)?/i, '').replace(/```$/, '').trim();
@@ -221,7 +234,8 @@ function parseAssistantResponse(content, source, actions) {
     return { content: segments.join('\n\n'), source, ...(table ? { table } : {}), ...(chart ? { chart } : {}), ...extras };
   }
 
-  return { content: normalizeAssistantText(raw) || raw, source, ...extras };
+  const partialContent = extractPartialContent(unfenced);
+  return { content: partialContent || normalizeAssistantText(raw) || raw, source, ...extras };
 }
 
 async function fetchCurrentSprintItems() {
@@ -452,7 +466,7 @@ async function askAzureOpenAI(prompt, history) {
         ...(withTools ? { tools: assistantTools, tool_choice: 'auto' } : {}),
         response_format: { type: 'json_object' },
         temperature: 0.2,
-        max_tokens: 800
+        max_tokens: 4000
       })
     });
 
