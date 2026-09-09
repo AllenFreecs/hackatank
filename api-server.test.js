@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAssistantResponse, updateWorkItem, searchSharePointFiles, assistantTools, sanitizeHistory } = require('./api-server.js');
+const { parseAssistantResponse, updateWorkItem, searchSharePointFiles, fetchOutlookMessages, assistantTools, sanitizeHistory } = require('./api-server.js');
 
 test('normalizes array-style assistant content into readable text and keeps a table', () => {
   const response = parseAssistantResponse(JSON.stringify({
@@ -122,6 +122,51 @@ test('searches SharePoint through Microsoft Graph and normalizes drive item resu
       type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
       modifiedDate: '2026-09-08T12:00:00Z',
       siteName: 'Global Benefits'
+    });
+  } finally {
+    process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = originalToken;
+    global.fetch = originalFetch;
+  }
+});
+
+test('searches Outlook through Microsoft Graph and supports unread mail', async () => {
+  const originalToken = process.env.MICROSOFT_GRAPH_ACCESS_TOKEN;
+  const originalFetch = global.fetch;
+  process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = 'test-graph-token';
+  process.env.MICROSOFT_GRAPH_USER_ID = 'me';
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return {
+      ok: true,
+      async json() {
+        return { value: [{
+          id: 'message-123',
+          subject: 'Budget approval',
+          sender: { emailAddress: { name: 'CFO Office', address: 'cfo@example.com' } },
+          importance: 'high',
+          receivedDateTime: '2026-09-09T08:30:00Z',
+          isRead: false,
+          webLink: 'https://outlook.office.com/mail/message-123'
+        }] };
+      }
+    };
+  };
+
+  try {
+    const result = await fetchOutlookMessages({ unreadOnly: true, limit: 10 });
+    assert.match(requests[0].url, /\/me\/mailFolders\/inbox\/messages\?/);
+    assert.match(requests[0].url, /%24filter=isRead\+eq\+false/);
+    assert.equal(requests[0].options.headers.Authorization, 'Bearer test-graph-token');
+    assert.deepEqual(result.messages[0], {
+      id: 'message-123',
+      subject: 'Budget approval',
+      sender: 'CFO Office',
+      senderAddress: 'cfo@example.com',
+      priority: 'High',
+      received: '2026-09-09T08:30:00Z',
+      isRead: false,
+      webUrl: 'https://outlook.office.com/mail/message-123'
     });
   } finally {
     process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = originalToken;

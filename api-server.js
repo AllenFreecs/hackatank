@@ -76,6 +76,53 @@ async function fetchTeamsCalendar({ startDateTime, endDateTime }) {
   return { events: (result.value || []).map(normalizeGraphEvent), nextLink: result['@odata.nextLink'] || null };
 }
 
+function microsoftGraphMailPath() {
+  const userId = process.env.MICROSOFT_GRAPH_USER_ID || 'me';
+  const folderId = process.env.MICROSOFT_GRAPH_MAIL_FOLDER_ID || 'inbox';
+  return userId === 'me'
+    ? `/me/mailFolders/${encodeURIComponent(folderId)}/messages`
+    : `/users/${encodeURIComponent(userId)}/mailFolders/${encodeURIComponent(folderId)}/messages`;
+}
+
+function normalizeGraphMessage(message) {
+  return {
+    id: message.id,
+    subject: message.subject || '(No subject)',
+    sender: message.sender?.emailAddress?.name || message.sender?.emailAddress?.address || 'Unknown sender',
+    senderAddress: message.sender?.emailAddress?.address || '',
+    priority: message.importance === 'high' ? 'High' : message.importance === 'low' ? 'Low' : 'Normal',
+    received: message.receivedDateTime,
+    isRead: message.isRead === true,
+    webUrl: message.webLink || ''
+  };
+}
+
+async function fetchOutlookMessages({ unreadOnly = false, limit = 25 } = {}) {
+  const resultLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 25;
+  const params = new URLSearchParams({
+    '$select': 'id,subject,sender,importance,receivedDateTime,isRead,webLink',
+    '$orderby': 'receivedDateTime desc',
+    '$top': `${resultLimit}`
+  });
+  if (unreadOnly === true) {
+    params.set('$filter', 'isRead eq false');
+  }
+
+  const response = await fetch(`https://graph.microsoft.com/v1.0${microsoftGraphMailPath()}?${params}`, {
+    headers: microsoftGraphHeaders()
+  });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`Microsoft Graph Outlook mail lookup failed with status ${response.status}: ${errorBody}`);
+  }
+
+  const result = await response.json();
+  return {
+    messages: (result.value || []).map(normalizeGraphMessage),
+    nextLink: result['@odata.nextLink'] || null
+  };
+}
+
 async function createTeamsCalendarEvent({ title, start, end, timeZone, location, isOnlineMeeting, attendees }) {
   if (!title || !start || !end) {
     throw new Error('Calendar title, start, and end are required.');
@@ -611,6 +658,21 @@ const assistantTools = [
   {
     type: 'function',
     function: {
+      name: 'get_outlook_messages',
+      description: 'Gets live Outlook inbox messages through Microsoft Graph. This is read-only and returns recent or unread message metadata for analysis in the assistant.',
+      parameters: {
+        type: 'object',
+        properties: {
+          unreadOnly: { type: 'boolean', description: 'Set true when the user asks for unread mail only.' },
+          limit: { type: 'integer', description: 'Maximum number of messages to return, from 1 to 100.' }
+        },
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'create_teams_calendar_event',
       description: 'Creates a Microsoft Teams calendar event or Teams online meeting. Always preview first; only write when confirm is true after explicit user approval.',
       parameters: {
@@ -656,6 +718,9 @@ async function runAssistantTool(name, rawArguments) {
   if (name === 'get_teams_calendar') {
     return fetchTeamsCalendar(args);
   }
+  if (name === 'get_outlook_messages') {
+    return fetchOutlookMessages(args);
+  }
   if (name === 'create_teams_calendar_event') {
     return scheduleTeamsCalendarEvent(args);
   }
@@ -685,7 +750,7 @@ async function askAzureOpenAI(prompt, history) {
   const messages = [
     {
       role: 'system',
-            content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state assumptions. Use get_teams_calendar for live Microsoft Teams or Microsoft 365 calendar questions. Use create_teams_calendar_event for scheduling requests: preview first and require explicit approval before calling with confirm true. Use get_current_sprint for live Azure DevOps sprint information. Use update_work_item for work item changes, but preview first and never write without explicit approval. Use search_sharepoint_files for live SharePoint searches; it is read-only and returns a browser-authenticated URL. Do not claim to have read SharePoint contents unless the tool returned them. Do not call tools for general explanations or drafting. Treat tool results as the source of truth. Always return a JSON object with a required content string and optional table and chart objects.'
+            content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state assumptions. Use get_teams_calendar for live Microsoft Teams or Microsoft 365 calendar questions. Use get_outlook_messages for live Outlook inbox, unread email, sender, priority, or approval-queue questions; it is read-only and returns message metadata. Use create_teams_calendar_event for scheduling requests: preview first and require explicit approval before calling with confirm true. Use get_current_sprint for live Azure DevOps sprint information. Use update_work_item for work item changes, but preview first and never write without explicit approval. Use search_sharepoint_files for live SharePoint searches; it is read-only and returns a browser-authenticated URL. Do not claim to have read SharePoint contents unless the tool returned them. Do not call tools for general explanations or drafting. Treat tool results as the source of truth. Always return a JSON object with a required content string and optional table and chart objects.'
     },
     ...sanitizeHistory(history),
     { role: 'user', content: prompt }
@@ -731,7 +796,7 @@ async function askAzureOpenAI(prompt, history) {
 
     messages.push(assistantMessage);
     for (const call of toolCalls) {
-      const source = call.function.name.includes('sharepoint') ? 'SharePoint' : call.function.name.includes('teams_calendar') ? 'Microsoft Teams Calendar' : 'Azure DevOps';
+      const source = call.function.name.includes('sharepoint') ? 'SharePoint' : call.function.name.includes('teams_calendar') ? 'Microsoft Teams Calendar' : call.function.name.includes('outlook') ? 'Outlook Mailbox' : 'Azure DevOps';
       usedSources.add(source);
       let toolResult;
       try {
@@ -862,4 +927,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseAssistantResponse, updateWorkItem, searchSharePointFiles, fetchTeamsCalendar, createTeamsCalendarEvent, assistantTools, sanitizeHistory, confirmationActions };
+module.exports = { parseAssistantResponse, updateWorkItem, searchSharePointFiles, fetchTeamsCalendar, createTeamsCalendarEvent, fetchOutlookMessages, assistantTools, sanitizeHistory, confirmationActions };
