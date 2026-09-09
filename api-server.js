@@ -509,18 +509,38 @@ async function updateWorkItem({ id, state, description, comment, confirm }) {
 
 async function searchSharePointFiles({ query, limit }) {
   const searchText = typeof query === 'string' && query.trim() ? query.trim() : '*';
-  const browserSearchUrl = sharePointBrowserSearchUrl(searchText);
+  const resultLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 25;
+  const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(searchText)}&$top=10`, { headers: microsoftGraphHeaders() });
+  if (!siteResponse.ok) {
+    const errorBody = await siteResponse.text();
+    throw new Error(`Microsoft Graph SharePoint site search failed with status ${siteResponse.status}: ${errorBody}`);
+  }
+
+  const sites = (await siteResponse.json()).value || [];
+  const escapedQuery = searchText.replace(/'/g, "''");
+  const files = [];
+  for (const site of sites) {
+    if (files.length >= resultLimit) break;
+    const driveResponse = await fetch(
+      `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(site.id)}/drive/root/search(q='${encodeURIComponent(escapedQuery)}')?$top=${resultLimit - files.length}`,
+      { headers: microsoftGraphHeaders() }
+    );
+    if (!driveResponse.ok) continue;
+    const driveItems = (await driveResponse.json()).value || [];
+    files.push(...driveItems.map((resource) => ({ resource, siteName: site.displayName || site.name || '' })));
+  }
+
   return {
     query: searchText,
-    searchUrl: browserSearchUrl,
-    files: [
-      {
-        name: `Open SharePoint search for ${searchText}`,
-        url: browserSearchUrl,
-        type: 'Browser-authenticated SharePoint search'
-      }
-    ],
-    message: 'Open this SharePoint search URL in the browser. It uses the user\'s existing browser session instead of an API token.'
+    files: files.slice(0, resultLimit).map(({ resource, siteName }) => ({
+      id: resource.id,
+      name: resource.name || 'Untitled SharePoint item',
+      url: resource.webUrl || '',
+      type: resource.file?.mimeType || (resource.folder ? 'Folder' : 'SharePoint item'),
+      modifiedDate: resource.lastModifiedDateTime,
+      siteName
+    })),
+    message: `Microsoft Graph returned ${files.length} SharePoint result${files.length === 1 ? '' : 's'} across ${sites.length} matching site${sites.length === 1 ? '' : 's'}.`
   };
 }
 
@@ -560,7 +580,7 @@ const assistantTools = [
     type: 'function',
     function: {
       name: 'search_sharepoint_files',
-      description: 'Builds a live SharePoint browser search URL for files and pages the user can access. This is read-only and uses the user\'s browser sign-in session instead of a SharePoint API token.',
+      description: 'Searches SharePoint files that the configured Microsoft Graph token can access. This is read-only and returns matching file metadata and links.',
       parameters: {
         type: 'object',
         properties: {
