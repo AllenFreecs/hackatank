@@ -6,11 +6,13 @@ import { DashboardComponent } from './features/dashboard/dashboard.component';
 import { KnowledgeComponent } from './features/knowledge/knowledge.component';
 import { ReportsComponent } from './features/reports/reports.component';
 import { SettingsComponent } from './features/settings/settings.component';
+import { TeamsCalendarComponent } from './features/calendar/teams-calendar.component';
 
 export const routes: Routes = [
   { path: '', pathMatch: 'full', redirectTo: 'dashboard' },
   { path: 'dashboard', component: DashboardComponent },
   { path: 'assistant', component: AssistantComponent },
+  { path: 'calendar', component: TeamsCalendarComponent },
   { path: 'reports', component: ReportsComponent },
   { path: 'knowledge', component: KnowledgeComponent },
   { path: 'automations', component: AutomationsComponent },
