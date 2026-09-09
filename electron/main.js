@@ -20,6 +20,39 @@ function azureDevOpsHeaders() {
   };
 }
 
+function normalizeSharePointSearchBaseUrl(value) {
+  const parsed = new URL(value);
+  const layoutIndex = parsed.pathname.toLowerCase().indexOf('/_layouts/');
+  if (layoutIndex >= 0) {
+    parsed.pathname = parsed.pathname.slice(0, layoutIndex);
+  } else {
+    const documentLibraryIndex = parsed.pathname.search(/\/(?:documents|shared%20documents|shared documents)(?:\/|$)/i);
+    if (documentLibraryIndex >= 0) {
+      parsed.pathname = parsed.pathname.slice(0, documentLibraryIndex);
+    }
+  }
+
+  parsed.search = '';
+  parsed.hash = '';
+  parsed.pathname = parsed.pathname.replace(/\/$/, '');
+  return parsed.toString().replace(/\/$/, '');
+}
+
+function sharePointSearchUrl() {
+  const configuredUrl = process.env.SHAREPOINT_SEARCH_URL || process.env.SHAREPOINT_SITE_URL;
+  if (!configuredUrl) {
+    throw new Error('SharePoint search URL or site URL is required in .env.');
+  }
+
+  return normalizeSharePointSearchBaseUrl(configuredUrl);
+}
+
+function sharePointBrowserSearchUrl(query) {
+  const searchBaseUrl = sharePointSearchUrl();
+  const params = new URLSearchParams({ q: query });
+  return `${searchBaseUrl}/_layouts/15/search.aspx/files?${params.toString()}`;
+}
+
 function normalizeAssistantText(value) {
   if (typeof value === 'string') {
     return value.trim();
@@ -374,6 +407,23 @@ async function updateWorkItem({ id, state, description, comment, confirm }) {
   };
 }
 
+async function searchSharePointFiles({ query, limit }) {
+  const searchText = typeof query === 'string' && query.trim() ? query.trim() : '*';
+  const browserSearchUrl = sharePointBrowserSearchUrl(searchText);
+  return {
+    query: searchText,
+    searchUrl: browserSearchUrl,
+    files: [
+      {
+        name: `Open SharePoint search for ${searchText}`,
+        url: browserSearchUrl,
+        type: 'Browser-authenticated SharePoint search'
+      }
+    ],
+    message: 'Open this SharePoint search URL in the browser. It uses the user\'s existing browser session instead of an API token.'
+  };
+}
+
 const assistantTools = [
   {
     type: 'function',
@@ -405,6 +455,22 @@ const assistantTools = [
         additionalProperties: false
       }
     }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'search_sharepoint_files',
+      description: 'Builds a live SharePoint browser search URL for files and pages the user can access. This is read-only and uses the user\'s browser sign-in session instead of a SharePoint API token.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'Search text for SharePoint items. Use * only when the user asks to list available items.' },
+          limit: { type: 'integer', description: 'Unused compatibility field. SharePoint search results are shown in the browser.' }
+        },
+        required: ['query'],
+        additionalProperties: false
+      }
+    }
   }
 ];
 
@@ -425,6 +491,9 @@ async function runAssistantTool(name, rawArguments) {
   }
   if (name === 'update_work_item') {
     return updateWorkItem(args);
+  }
+  if (name === 'search_sharepoint_files') {
+    return searchSharePointFiles(args);
   }
   throw new Error(`Unknown tool: ${name}`);
 }
@@ -504,7 +573,7 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt, history) => {
   const messages = [
     {
       role: 'system',
-      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. Call get_current_sprint when the user needs live information about the current sprint, work-item state, ownership, delivery progress, backlog, blockers, or bugs. Call update_work_item when the user asks to change a work item status or state, set or rewrite its description, or add a comment or note to it; it needs the numeric work item id, so look the id up with get_current_sprint first when the user refers to an item by title. Never write a work item change without explicit user approval: call update_work_item without confirm first, then state the work item id, its current state, and the exact new state, description, and comment you intend to write, and ask the user to confirm. If any of those details are missing or ambiguous, ask the user for them instead of guessing. Only call update_work_item with confirm set to true after the user has clearly approved that specific change in this conversation. Do not call tools for general explanations, drafting, or questions that do not require current Azure DevOps data. When tool results are available, treat them as the source of truth and include item IDs, titles, states, and assignees when relevant. Always return a JSON object with a required content string and an optional table object. Add table with string columns and string-array rows whenever the user asks for a list, records, work items, backlog, bugs, or a comparison. Omit table for a conversational answer. Also add an optional chart object with title, labels (strings), values (numbers, same length as labels), unit "number", and type "bar" or "pie" whenever the answer is a breakdown or distribution across categories. Use type "bar" for counts by status, state, or severity, and type "pie" for share across sprint lanes, channels, teams, or owners. Omit chart when there is nothing to compare.'
+      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state when you are making an assumption. Call get_current_sprint when the user needs live information about the current sprint, work-item state, ownership, delivery progress, backlog, blockers, or bugs. Call update_work_item when the user asks to change a work item status or state, set or rewrite its description, or add a comment or note to it; it needs the numeric work item id, so look the id up with get_current_sprint first when the user refers to an item by title. Call search_sharepoint_files when the user needs live SharePoint items, documents, pages, article links, policy files, knowledge hub content, or metadata across SharePoint. SharePoint access is read-only and browser-authenticated: provide the returned SharePoint search URL so the user can open live results in their signed-in browser session. Do not claim you read SharePoint result contents unless a tool result includes those contents. Do not offer to create, upload, replace, or update SharePoint files. Never write a work item change without explicit user approval: call update_work_item without confirm first, then state the target id and the exact change you intend to write, and ask the user to confirm. If any work item write details are missing or ambiguous, ask the user for them instead of guessing. Only call update_work_item with confirm set to true after the user has clearly approved that specific change in this conversation. Do not call tools for general explanations, drafting, or questions that do not require current Azure DevOps or SharePoint data. When tool results are available, treat them as the source of truth and include item IDs, titles, states, assignees, file names, links, authors, modified times, and SharePoint item types when relevant. Always return a JSON object with a required content string and an optional table object. Add table with string columns and string-array rows whenever the user asks for a list, records, work items, backlog, bugs, SharePoint items, files, documents, or a comparison. Omit table for a conversational answer. Also add an optional chart object with title, labels (strings), values (numbers, same length as labels), unit "number", and type "bar" or "pie" whenever the answer is a breakdown or distribution across categories. Use type "bar" for counts by status, state, or severity, and type "pie" for share across sprint lanes, channels, teams, or owners. Omit chart when there is nothing to compare.'
     },
     ...sanitizeHistory(history),
     { role: 'user', content: prompt }
@@ -542,8 +611,8 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt, history) => {
   };
 
   let assistantMessage = await requestCompletion(true);
-  let usedAzureDevOps = false;
-  let azureDevOpsFailed = false;
+  const usedSources = new Set();
+  const failedSources = new Set();
   let awaitingConfirmation = false;
 
   for (let round = 0; round < 3; round += 1) {
@@ -554,13 +623,14 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt, history) => {
 
     messages.push(assistantMessage);
     for (const call of toolCalls) {
-      usedAzureDevOps = true;
+      const source = call.function.name.includes('sharepoint') ? 'SharePoint' : 'Azure DevOps';
+      usedSources.add(source);
       let toolResult;
       try {
         toolResult = await runAssistantTool(call.function.name, call.function.arguments);
       } catch (error) {
         toolResult = { error: error.message };
-        azureDevOpsFailed = true;
+        failedSources.add(source);
       }
       awaitingConfirmation = toolResult?.requiresConfirmation === true;
       messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult) });
@@ -575,13 +645,15 @@ ipcMain.handle('ai-assistant:respond', async (_event, prompt, history) => {
   }
 
   const actions = awaitingConfirmation ? confirmationActions : undefined;
-  if (!usedAzureDevOps) {
+  if (!usedSources.size) {
     return parseAssistantResponse(content, 'Azure OpenAI', actions);
   }
 
+  const sourceLabel = [...usedSources].join(' + ');
+  const failedLabel = [...failedSources].join(' + ');
   return parseAssistantResponse(
     content,
-    azureDevOpsFailed ? 'Azure OpenAI (Azure DevOps unavailable)' : 'Azure OpenAI + Azure DevOps',
+    failedSources.size ? `Azure OpenAI (${failedLabel} unavailable)` : `Azure OpenAI + ${sourceLabel}`,
     actions
   );
 });

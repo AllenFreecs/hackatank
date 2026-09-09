@@ -35,11 +35,27 @@
             </div>
 
             @if (message.content && !message.table) {
-              <p>{{ message.content }}</p>
+              <p>
+                @for (segment of linkifiedContent(message.content); track $index) {
+                  @if (segment.url) {
+                    <a class="message-link" [href]="segment.url" target="_blank" rel="noopener noreferrer">{{ segment.text }}</a>
+                  } @else {
+                    <span>{{ segment.text }}</span>
+                  }
+                }
+              </p>
             }
 
             @if (message.table && message.content) {
-              <p class="table-summary">{{ message.content }}</p>
+              <p class="table-summary">
+                @for (segment of linkifiedContent(message.content); track $index) {
+                  @if (segment.url) {
+                    <a class="message-link" [href]="segment.url" target="_blank" rel="noopener noreferrer">{{ segment.text }}</a>
+                  } @else {
+                    <span>{{ segment.text }}</span>
+                  }
+                }
+              </p>
             }
 
             @if (message.figures?.length) {

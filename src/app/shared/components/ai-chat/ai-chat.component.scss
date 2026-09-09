@@ -122,6 +122,19 @@
 	margin-bottom: 0;
 }
 
+.message-link {
+	color: var(--app-accent);
+	font-weight: 700;
+	text-decoration: underline;
+	text-decoration-thickness: 1px;
+	text-underline-offset: 0.18em;
+	word-break: break-all;
+}
+
+.message-link:hover {
+	color: color-mix(in srgb, var(--app-accent) 78%, #111827 22%);
+}
+
 .figures {
 	display: grid;
 	grid-template-columns: repeat(3, minmax(140px, 1fr));

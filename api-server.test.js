@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAssistantResponse, updateWorkItem, assistantTools, sanitizeHistory } = require('./api-server.js');
+const { parseAssistantResponse, updateWorkItem, searchSharePointFiles, assistantTools, sanitizeHistory } = require('./api-server.js');
 
 test('normalizes array-style assistant content into readable text and keeps a table', () => {
   const response = parseAssistantResponse(JSON.stringify({
@@ -63,6 +63,14 @@ test('exposes the work item update tool to the assistant', () => {
   assert.deepEqual(tool.function.parameters.required, ['id']);
 });
 
+test('exposes the SharePoint search tool to the assistant', () => {
+  const searchTool = assistantTools.find((entry) => entry.function.name === 'search_sharepoint_files');
+
+  assert.ok(searchTool);
+  assert.deepEqual(Object.keys(searchTool.function.parameters.properties), ['query', 'limit']);
+  assert.deepEqual(searchTool.function.parameters.required, ['query']);
+});
+
 test('previews a work item update instead of applying it when unconfirmed', async () => {
   process.env.AZURE_DEVOPS_ORG_URL = 'https://dev.azure.com/contoso';
   process.env.AZURE_DEVOPS_DEFAULT_PROJECT = 'Demo';
@@ -72,6 +80,24 @@ test('previews a work item update instead of applying it when unconfirmed', asyn
   assert.equal(preview.applied, false);
   assert.equal(preview.id, 205283);
   assert.deepEqual(preview.proposedChanges, { state: 'Done', description: null, comment: 'Testing passed.' });
+});
+
+test('builds a browser SharePoint search URL without a token or document library', async () => {
+  const originalSearchUrl = process.env.SHAREPOINT_SEARCH_URL;
+  const originalSiteUrl = process.env.SHAREPOINT_SITE_URL;
+
+  process.env.SHAREPOINT_SEARCH_URL = 'https://contoso.sharepoint.com/sites/Global/_layouts/15/search.aspx/files?q=onboarding';
+  delete process.env.SHAREPOINT_SITE_URL;
+
+  try {
+    const result = await searchSharePointFiles({ query: 'onboarding', limit: 5 });
+    assert.equal(result.searchUrl, 'https://contoso.sharepoint.com/sites/Global/_layouts/15/search.aspx/files?q=onboarding');
+    assert.equal(result.files[0].url, result.searchUrl);
+    assert.equal(result.files[0].type, 'Browser-authenticated SharePoint search');
+  } finally {
+    process.env.SHAREPOINT_SEARCH_URL = originalSearchUrl;
+    process.env.SHAREPOINT_SITE_URL = originalSiteUrl;
+  }
 });
 
 test('keeps only the last ten user and assistant turns in history', () => {

@@ -103,9 +103,6 @@ export class AssistantComponent {
     ],
     'SharePoint Knowledge Hub': [
       'Find files related to employee onboarding.',
-      'Show SharePoint files about finance approvals.',
-      'Get document links for procurement info.',
-      'Find support SLA files and links.'
     ],
     'Teams Calendar': [
       'Show Teams activity summary.',

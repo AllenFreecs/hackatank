@@ -23,6 +23,11 @@ interface PieSlice {
   color: string;
 }
 
+interface TextSegment {
+  text: string;
+  url?: string;
+}
+
 @Component({
   selector: 'app-ai-chat',
   standalone: true,
@@ -95,6 +100,34 @@ export class AiChatComponent {
     return Number.isNaN(timestamp.getTime())
       ? ''
       : timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  }
+
+  linkifiedContent(content: string): TextSegment[] {
+    const segments: TextSegment[] = [];
+    const urlPattern = /https?:\/\/[^\s<>()]+/g;
+    let cursor = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = urlPattern.exec(content)) !== null) {
+      if (match.index > cursor) {
+        segments.push({ text: content.slice(cursor, match.index) });
+      }
+
+      const rawUrl = match[0];
+      const trimmedUrl = rawUrl.replace(/[.,;:!?]+$/, '');
+      const trailing = rawUrl.slice(trimmedUrl.length);
+      segments.push({ text: trimmedUrl, url: trimmedUrl });
+      if (trailing) {
+        segments.push({ text: trailing });
+      }
+      cursor = match.index + rawUrl.length;
+    }
+
+    if (cursor < content.length) {
+      segments.push({ text: content.slice(cursor) });
+    }
+
+    return segments.length ? segments : [{ text: content }];
   }
 
   meetingRows(message: ChatMessage): string[][] {
