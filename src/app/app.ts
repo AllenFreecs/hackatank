@@ -36,7 +36,7 @@ export class App {
 
   navItems: NavItem[] = [
     { label: 'Dashboard', icon: 'dashboard', route: '/dashboard' },
-    { label: 'AI Assistant', icon: 'smart_toy', route: '/assistant' },
+    { label: 'Ask Core', icon: 'smart_toy', route: '/assistant' },
     { label: 'Reports', icon: 'description', route: '/reports' },
     { label: 'Knowledge', icon: 'library_books', route: '/knowledge' },
     { label: 'Automations', icon: 'auto_awesome', route: '/automations' },

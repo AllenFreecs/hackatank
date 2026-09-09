@@ -17,7 +17,7 @@ import { AiChatComponent } from '../../shared/components/ai-chat/ai-chat.compone
     <section class="assistant-page">
       <header>
         <div>
-          <h1>AI Assistant</h1>
+          <h1>What can I do for you?</h1>
           <p>Ask, analyze, and automate with an interactive workspace-style chat.</p>
         </div>
 
