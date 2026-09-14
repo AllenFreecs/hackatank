@@ -638,36 +638,81 @@ async function updateWorkItem({ id, state, description, comment, confirm }) {
   };
 }
 
+function formatSharePointFileType(mimeType, name) {
+  const mime = (mimeType || '').toLowerCase();
+  const filename = (name || '').toLowerCase();
+  if (mime.includes('presentation') || filename.endsWith('.pptx') || filename.endsWith('.ppt')) return 'PowerPoint';
+  if (mime.includes('wordprocessing') || filename.endsWith('.docx') || filename.endsWith('.doc')) return 'Word';
+  if (mime.includes('spreadsheet') || mime.includes('excel') || filename.endsWith('.xlsx') || filename.endsWith('.xls') || filename.endsWith('.csv')) return 'Excel';
+  if (mime.includes('pdf') || filename.endsWith('.pdf')) return 'PDF';
+  if (mime.includes('image') || filename.endsWith('.png') || filename.endsWith('.jpg') || filename.endsWith('.jpeg')) return 'Image';
+  if (mime.includes('folder')) return 'Folder';
+  return 'Document';
+}
+
 async function searchSharePointFiles({ query, limit }) {
-  const searchText = typeof query === 'string' && query.trim() ? query.trim() : '*';
+  const isWildcard = !query || typeof query !== 'string' || !query.trim() || query.trim() === '*';
+  const searchText = isWildcard ? '' : query.trim();
   const resultLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 100) : 25;
-  const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(searchText)}&$top=10`, { headers: microsoftGraphHeaders() });
-  if (!siteResponse.ok) {
-    const errorBody = await siteResponse.text();
-    throw new Error(`Microsoft Graph SharePoint site search failed with status ${siteResponse.status}: ${errorBody}`);
+
+  let sites = [];
+  if (isWildcard) {
+    const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites?search=a&$top=10`, { headers: microsoftGraphHeaders() });
+    if (siteResponse.ok) {
+      sites = (await siteResponse.json()).value || [];
+    }
+    if (!sites.length) {
+      const rootResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/root`, { headers: microsoftGraphHeaders() });
+      if (rootResponse.ok) {
+        const rootSite = await rootResponse.json();
+        if (rootSite?.id) sites = [rootSite];
+      }
+    }
+  } else {
+    const siteResponse = await fetch(`https://graph.microsoft.com/v1.0/sites?search=${encodeURIComponent(searchText)}&$top=10`, { headers: microsoftGraphHeaders() });
+    if (!siteResponse.ok) {
+      const errorBody = await siteResponse.text();
+      throw new Error(`Microsoft Graph SharePoint site search failed with status ${siteResponse.status}: ${errorBody}`);
+    }
+    sites = (await siteResponse.json()).value || [];
+    if (!sites.length) {
+      const rootResponse = await fetch(`https://graph.microsoft.com/v1.0/sites/root`, { headers: microsoftGraphHeaders() });
+      if (rootResponse.ok) {
+        const rootSite = await rootResponse.json();
+        if (rootSite?.id) sites = [rootSite];
+      }
+    }
   }
 
-  const sites = (await siteResponse.json()).value || [];
+  if (!sites.length) {
+    return {
+      query: isWildcard ? '*' : searchText,
+      files: [],
+      message: 'No matching SharePoint sites found.'
+    };
+  }
+
   const escapedQuery = searchText.replace(/'/g, "''");
   const files = [];
   for (const site of sites) {
     if (files.length >= resultLimit) break;
-    const driveResponse = await fetch(
-      `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(site.id)}/drive/root/search(q='${encodeURIComponent(escapedQuery)}')?$top=${resultLimit - files.length}`,
-      { headers: microsoftGraphHeaders() }
-    );
+    const driveUrl = isWildcard
+      ? `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(site.id)}/drive/root/children?$top=${resultLimit - files.length}`
+      : `https://graph.microsoft.com/v1.0/sites/${encodeURIComponent(site.id)}/drive/root/search(q='${encodeURIComponent(escapedQuery)}')?$top=${resultLimit - files.length}`;
+
+    const driveResponse = await fetch(driveUrl, { headers: microsoftGraphHeaders() });
     if (!driveResponse.ok) continue;
     const driveItems = (await driveResponse.json()).value || [];
     files.push(...driveItems.map((resource) => ({ resource, siteName: site.displayName || site.name || '' })));
   }
 
   return {
-    query: searchText,
+    query: isWildcard ? '*' : searchText,
     files: files.slice(0, resultLimit).map(({ resource, siteName }) => ({
       id: resource.id,
       name: resource.name || 'Untitled SharePoint item',
       url: resource.webUrl || '',
-      type: resource.file?.mimeType || (resource.folder ? 'Folder' : 'SharePoint item'),
+      type: formatSharePointFileType(resource.file?.mimeType, resource.name),
       modifiedDate: resource.lastModifiedDateTime,
       siteName
     })),
@@ -951,6 +996,22 @@ const server = http.createServer(async (request, response) => {
       const url = new URL(request.url, 'http://127.0.0.1');
       const result = await fetchOutlookMessages({
         unreadOnly: url.searchParams.get('unreadOnly') === 'true',
+        limit: Number(url.searchParams.get('limit') || 25)
+      });
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  if (request.method === 'GET' && request.url.startsWith('/api/sharepoint-files')) {
+    try {
+      const url = new URL(request.url, 'http://127.0.0.1');
+      const result = await searchSharePointFiles({
+        query: url.searchParams.get('query') || '*',
         limit: Number(url.searchParams.get('limit') || 25)
       });
       response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });

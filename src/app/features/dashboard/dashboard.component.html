@@ -1,13 +1,14 @@
 <section class="dashboard">
   <header>
     <h1>WTW Core - Centralized AI Orchestration & Reasoning Engine</h1>
-    <p>Azure monitoring, Teams scheduling, and Outlook approvals in one operational cockpit.</p>
+    <p>Azure monitoring, SharePoint knowledge, Teams scheduling, and Outlook approvals in one operational cockpit.</p>
   </header>
 
   <div class="kpis">
     <app-kpi-card label="Pending Azure Tasks" [value]="pendingTasks" icon="pending_actions" />
     <app-kpi-card label="Latest SLA" [value]="latestSla" icon="monitor_heart" />
     <app-kpi-card label="Sprint Items" [value]="sprintItems" icon="view_kanban" />
+    <app-kpi-card label="SharePoint Documents" [value]="sharePointDocCount" icon="folder_shared" />
     <app-kpi-card label="Approval Queue" [value]="approvalQueue" icon="approval" />
   </div>
 
@@ -49,11 +50,40 @@
         } @else {
         @for (mail of displayOutlookQueue; track mail.id) {
           <div class="queue-item">
-            <div>
+            <div class="mail-details">
               <p class="mail-subject">{{ mail.subject }}</p>
-              <p class="mail-meta">{{ mail.sender }} · {{ mail.received }}</p>
+              <p class="mail-meta">{{ mail.sender }} · {{ formatDate(mail.received) }}</p>
             </div>
             <span class="priority" [class]="'priority ' + priorityClass(mail.priority)">{{ mail.priority }}</span>
+          </div>
+        }
+        }
+      </div>
+    </mat-card>
+
+    <mat-card class="wtw-panel panel sharepoint-panel">
+      <div class="panel-header">
+        <div>
+          <h3>SharePoint Knowledge & Files</h3>
+          <span class="panel-stat">{{ sharePointFiles.length }} articles · Knowledge Hub</span>
+        </div>
+        <button class="insight-cta inline-cta" mat-stroked-button color="primary" routerLink="/knowledge">View Hub →</button>
+      </div>
+      <div class="file-list">
+        @if (sharePointError) {
+          <p class="panel-error">{{ sharePointError }}</p>
+        } @else if (!sharePointFiles.length) {
+          <p class="panel-empty">No SharePoint documents found.</p>
+        } @else {
+        @for (file of sharePointFiles; track file.id) {
+          <div class="file-item">
+            <div class="file-details">
+              <a [href]="file.url" target="_blank" rel="noopener noreferrer" class="file-name" [title]="file.name">{{ file.name }}</a>
+              <p class="file-meta">{{ file.siteName }} · {{ formatDate(file.modifiedDate) }}</p>
+            </div>
+            <span class="chip category-chip" [title]="file.category || formatFileType(file.type, file.name)">
+              {{ file.category || formatFileType(file.type, file.name) }}
+            </span>
           </div>
         }
         }

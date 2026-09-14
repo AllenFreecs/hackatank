@@ -165,10 +165,49 @@ test('searches SharePoint through Microsoft Graph and normalizes drive item resu
       id: 'file-123',
       name: 'Onboarding.docx',
       url: 'https://contoso.sharepoint.com/sites/Global/Onboarding.docx',
-      type: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+      type: 'Word',
       modifiedDate: '2026-09-08T12:00:00Z',
       siteName: 'Global Benefits'
     });
+  } finally {
+    process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = originalToken;
+    global.fetch = originalFetch;
+  }
+});
+
+test('handles wildcard SharePoint file queries using drive children', async () => {
+  const originalToken = process.env.MICROSOFT_GRAPH_ACCESS_TOKEN;
+  const originalFetch = global.fetch;
+  process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = 'test-graph-token';
+  const requests = [];
+  global.fetch = async (url, options) => {
+    requests.push({ url, options });
+    return {
+      ok: true,
+      async json() {
+        if (url.includes('/sites?search=')) {
+          return { value: [{ id: 'site-123', displayName: 'Global Benefits' }] };
+        }
+        return {
+          value: [{
+            id: 'file-456',
+            name: 'Policy.pdf',
+            webUrl: 'https://contoso.sharepoint.com/sites/Global/Policy.pdf',
+            file: { mimeType: 'application/pdf' },
+            lastModifiedDateTime: '2026-09-08T12:00:00Z'
+          }]
+        };
+      }
+    };
+  };
+
+  try {
+    const result = await searchSharePointFiles({ query: '*', limit: 5 });
+    assert.equal(requests.length, 2);
+    assert.equal(requests[0].url, 'https://graph.microsoft.com/v1.0/sites?search=a&$top=10');
+    assert.equal(requests[1].url, 'https://graph.microsoft.com/v1.0/sites/site-123/drive/root/children?$top=5');
+    assert.equal(result.files.length, 1);
+    assert.equal(result.files[0].name, 'Policy.pdf');
   } finally {
     process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = originalToken;
     global.fetch = originalFetch;

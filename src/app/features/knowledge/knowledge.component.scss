@@ -26,3 +26,24 @@ h1 {
 table {
 	width: 100%;
 }
+
+.panel-empty,
+.panel-error {
+	margin: 1rem;
+	font-size: 0.88rem;
+}
+
+.panel-error {
+	color: #a0362d;
+}
+
+a {
+	color: var(--app-heading);
+	font-weight: 600;
+	text-decoration: none;
+}
+
+a:hover {
+	color: var(--app-accent);
+	text-decoration: underline;
+}

@@ -7,6 +7,7 @@ import { DataService } from '../../core/services/data.service';
 import { AzureSprintItem, AzureSprintService } from '../../core/services/azure-sprint.service';
 import { OutlookMessage, OutlookService } from '../../core/services/outlook.service';
 import { TeamsCalendarEvent, TeamsCalendarService } from '../../core/services/teams-calendar.service';
+import { SharePointFile, SharePointService } from '../../core/services/sharepoint.service';
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
 
 @Component({
@@ -21,6 +22,7 @@ export class DashboardComponent {
   private readonly sprintService = inject(AzureSprintService);
   private readonly calendarService = inject(TeamsCalendarService);
   private readonly outlookService = inject(OutlookService);
+  private readonly sharePointService = inject(SharePointService);
   private readonly destroyRef = inject(DestroyRef);
 
   weeklyActivity = this.dataService.getWeeklyActivity();
@@ -28,9 +30,11 @@ export class DashboardComponent {
   teamsCalendar: TeamsCalendarEvent[] = [];
   sprintBoard: Array<{ lane: string; items: AzureSprintItem[] }> = [];
   outlookQueue: OutlookMessage[] = [];
+  sharePointFiles: SharePointFile[] = [];
   calendarError = '';
   outlookError = '';
   sprintError = '';
+  sharePointError = '';
   sprintIteration = '';
   tasks = this.dataService.getTasksSnapshot();
 
@@ -54,15 +58,21 @@ export class DashboardComponent {
     return this.outlookQueue.length;
   }
 
+  get sharePointDocCount(): number {
+    return this.sharePointFiles.length;
+  }
+
   get displayOutlookQueue(): OutlookMessage[] {
     return this.outlookQueue.filter((mail) => mail.priority !== 'Normal');
   }
 
   get meetingMinutes(): number {
-    return this.teamsCalendar.reduce(
-      (total, event) => total + Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000),
-      0
-    );
+    return this.teamsCalendar
+      .filter((event) => !event.title.toLowerCase().includes('pto'))
+      .reduce((total, event) => {
+        const mins = Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000);
+        return total + (mins <= 480 ? mins : 0);
+      }, 0);
   }
 
   get highPriorityApprovals(): number {
@@ -114,8 +124,35 @@ export class DashboardComponent {
     return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
   }
 
+  formatDate(value?: string): string {
+    if (!value) return 'N/A';
+    const date = new Date(value);
+    if (isNaN(date.getTime())) return value;
+    return date.toLocaleDateString([], { year: 'numeric', month: 'short', day: 'numeric' });
+  }
+
+  formatFileType(type?: string, name?: string): string {
+    const t = (type || '').toLowerCase();
+    const n = (name || '').toLowerCase();
+    if (t.includes('presentation') || n.endsWith('.pptx') || n.endsWith('.ppt')) return 'PowerPoint';
+    if (t.includes('wordprocessing') || n.endsWith('.docx') || n.endsWith('.doc')) return 'Word';
+    if (t.includes('spreadsheet') || t.includes('excel') || n.endsWith('.xlsx') || n.endsWith('.xls')) return 'Excel';
+    if (t.includes('pdf') || n.endsWith('.pdf')) return 'PDF';
+    if (t.includes('image') || n.endsWith('.png') || n.endsWith('.jpg')) return 'Image';
+    if (t.includes('folder')) return 'Folder';
+    return type && !t.startsWith('application/') ? type : 'Document';
+  }
+
   eventDuration(event: TeamsCalendarEvent): string {
     const minutes = Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000);
+    if (minutes >= 1440) {
+      const days = Math.round(minutes / 1440);
+      return `${days}d`;
+    }
+    if (minutes >= 60) {
+      const hours = (minutes / 60).toFixed(1).replace(/\.0$/, '');
+      return `${hours}h`;
+    }
     return `${minutes}m`;
   }
 
@@ -134,6 +171,10 @@ export class DashboardComponent {
         this.sprintBoard = this.groupSprintItems(result.items);
       },
       error: (error: Error) => this.sprintError = error.message
+    });
+    this.sharePointService.getFiles('*', 6).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => this.sharePointFiles = result.files,
+      error: (error: Error) => this.sharePointError = error.message
     });
   }
 
