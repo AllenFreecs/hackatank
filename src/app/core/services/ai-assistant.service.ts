@@ -515,7 +515,7 @@ export class AiAssistantService {
           subject: 'Follow-up: Pending approval emails',
           body: `Hello team,\n\nFollowing up on the pending approval emails currently in the Outlook queue:\n\n${messages
             .map((entry) => `- ${entry.subject} from ${entry.sender} (${entry.priority})`)
-            .join('\n')}\n\nPlease review and confirm the next action today so we can keep the approval queue moving.\n\nBest regards,\nAI Assistant`
+            .join('\n')}\n\nPlease review and confirm the next action today so we can keep the approval queue moving.\n\nBest regards,\nCore`
         },
         table: {
           columns: ['Email subject', 'Sender', 'Priority'],
@@ -710,7 +710,7 @@ export class AiAssistantService {
         emailDraft: {
           subject: 'Operations Report Delay',
           body:
-            'Hello Finance Team,\n\nWe detected a delay in this week\'s operations report due to unresolved verification checks. We recommend automating the validation workflow to reduce manual review and prevent recurring delays.\n\nBest regards,\nAI Assistant'
+            'Hello Finance Team,\n\nWe detected a delay in this week\'s operations report due to unresolved verification checks. We recommend automating the validation workflow to reduce manual review and prevent recurring delays.\n\nBest regards,\nCore'
         },
         actions: ['Copy', 'Edit', 'Send']
       });

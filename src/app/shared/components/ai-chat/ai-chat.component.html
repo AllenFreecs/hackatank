@@ -183,7 +183,7 @@
       @if (loading()) {
         <article class="message-row">
           <mat-card class="bubble typing">
-            <app-loading-state message="AI Assistant is typing..." />
+            <app-loading-state message="Core is typing..." />
           </mat-card>
         </article>
       }
@@ -197,8 +197,8 @@
       cdkTextareaAutosize
       cdkAutosizeMinRows="1"
       cdkAutosizeMaxRows="10"
-      placeholder="Message AI Assistant"
-      aria-label="Message AI Assistant"
+      placeholder="Message Core"
+      aria-label="Message Core"
       [(ngModel)]="draft"
       (focus)="composerFocused = true"
       (blur)="composerFocused = false"
