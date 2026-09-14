@@ -237,18 +237,89 @@ function isValidTable(table) {
   );
 }
 
+function normalizeChart(chart) {
+  if (!chart || typeof chart.title !== 'string' || !Array.isArray(chart.labels) || chart.labels.length === 0 || !chart.labels.every((label) => typeof label === 'string')) {
+    return null;
+  }
+
+  if (!Array.isArray(chart.values) || chart.values.length !== chart.labels.length) {
+    return null;
+  }
+
+  const normalizedValues = chart.values.map((value) => {
+    if (typeof value === 'number' && Number.isFinite(value)) {
+      return value;
+    }
+    if (typeof value === 'string' && value.trim() !== '' && Number.isFinite(Number(value))) {
+      return Number(value);
+    }
+    return null;
+  });
+
+  if (normalizedValues.some((value) => value === null)) {
+    return null;
+  }
+
+  if (chart.type !== undefined && chart.type !== 'bar' && chart.type !== 'pie') {
+    return null;
+  }
+
+  if (chart.unit !== undefined && chart.unit !== 'number' && chart.unit !== 'currency' && chart.unit !== 'percent') {
+    return null;
+  }
+
+  return {
+    title: chart.title,
+    labels: chart.labels,
+    values: normalizedValues,
+    ...(chart.type ? { type: chart.type } : {}),
+    ...(chart.unit ? { unit: chart.unit } : {})
+  };
+}
+
 function isValidChart(chart) {
-  return (
-    typeof chart?.title === 'string' &&
-    Array.isArray(chart?.labels) &&
-    chart.labels.length > 0 &&
-    chart.labels.every((label) => typeof label === 'string') &&
-    Array.isArray(chart?.values) &&
-    chart.values.length === chart.labels.length &&
-    chart.values.every((value) => typeof value === 'number' && Number.isFinite(value)) &&
-    (chart.type === undefined || chart.type === 'bar' || chart.type === 'pie') &&
-    (chart.unit === undefined || chart.unit === 'number' || chart.unit === 'currency' || chart.unit === 'percent')
-  );
+  return normalizeChart(chart) !== null;
+}
+
+function inferChartFromText(value) {
+  const text = normalizeAssistantText(value);
+  if (!text) {
+    return null;
+  }
+
+  const tableRows = [...text.matchAll(/^\s*\|\s*([^|]+?)\s*\|\s*([^|]+?)\s*\|\s*$/gm)]
+    .map((match) => [match[1].trim(), match[2].trim()])
+    .filter((row) => !/^:?-{3,}:?$/.test(row[0]) && !/^:?-{3,}:?$/.test(row[1]));
+  if (tableRows.length >= 3 && /count|total|items|tasks|number|volume/i.test(tableRows[0][1])) {
+    const points = tableRows.slice(1)
+      .map(([label, value]) => ({ label, value: Number(value.replace(/,/g, '')) }))
+      .filter((point) => point.label && Number.isFinite(point.value));
+    if (points.length >= 2) {
+      return {
+        title: `${tableRows[0][1]} by ${tableRows[0][0].toLowerCase()}`,
+        labels: points.map((point) => point.label),
+        values: points.map((point) => point.value),
+        unit: 'number',
+        type: 'bar'
+      };
+    }
+  }
+
+  const points = [...text.matchAll(/(?:^|\n)\s*[-*]\s*([^:\n]+):\s*([\d,]+)(?:\s+\w+)?\s*$/gm)]
+    .map((match) => ({ label: match[1].trim(), value: Number(match[2].replace(/,/g, '')) }))
+    .filter((point) => point.label && Number.isFinite(point.value));
+
+  if (points.length < 2) {
+    return null;
+  }
+
+  return {
+    title: 'Status summary',
+    labels: points.map((point) => point.label),
+    values: points.map((point) => point.value),
+    unit: 'number',
+    type: 'bar'
+  };
 }
 
 const PIE_CATEGORY_PATTERN = /lane|channel|category|area|team|owner|assignee/i;
@@ -365,13 +436,25 @@ function parseAssistantResponse(content, source, actions) {
       }
     }
 
-    if (!chart && isValidChart(payload?.chart)) {
-      chart = payload.chart;
+    if (!chart) {
+      const candidateChart = normalizeChart(payload?.chart);
+      if (candidateChart) {
+        chart = candidateChart;
+      }
     }
   }
 
   if (!chart) {
     chart = inferChartFromTable(table);
+  }
+
+  if (!chart) {
+    for (const payload of payloads) {
+      chart = inferChartFromText(payload?.content ?? payload);
+      if (chart) {
+        break;
+      }
+    }
   }
 
   if (segments.length) {

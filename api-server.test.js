@@ -49,6 +49,52 @@ test('parses a fenced JSON reply and keeps its table', () => {
   assert.equal(response.table.rows[0][0], '205283');
 });
 
+test('keeps chart payloads when values arrive as numeric strings', () => {
+  const response = parseAssistantResponse(JSON.stringify({
+    content: 'Here is the sprint work by lane.',
+    chart: {
+      title: 'Sprint work by lane',
+      labels: ['Backlog', 'Review', 'Done'],
+      values: ['12', '7', '5'],
+      unit: 'number',
+      type: 'bar'
+    }
+  }), 'Azure OpenAI');
+
+  assert.equal(response.content, 'Here is the sprint work by lane.');
+  assert.ok(response.chart);
+  assert.deepEqual(response.chart.values, [12, 7, 5]);
+  assert.equal(response.chart.type, 'bar');
+});
+
+test('infers a bar chart from status bullets when the model omits chart metadata', () => {
+  const response = parseAssistantResponse(JSON.stringify({
+    content: 'Here is the Azure DevOps task health summary by status for the current sprint:\n\n- To Do: 21 tasks\n- In Progress: 2 tasks\n- New: 4 tasks\n- Approved: 7 tasks\n- Committed: 8 tasks\n- Done: 7 tasks'
+  }), 'Azure OpenAI + Azure DevOps');
+
+  assert.deepEqual(response.chart, {
+    title: 'Status summary',
+    labels: ['To Do', 'In Progress', 'New', 'Approved', 'Committed', 'Done'],
+    values: [21, 2, 4, 7, 8, 7],
+    unit: 'number',
+    type: 'bar'
+  });
+});
+
+test('infers a bar chart from a markdown count table when the model omits chart metadata', () => {
+  const response = parseAssistantResponse(JSON.stringify({
+    content: 'Here is the Azure DevOps task health by status:\n\n| Status | Count |\n| --- | --- |\n| To Do | 22 |\n| New | 3 |\n| Approved | 12 |\n| Committed | 1 |\n| In Progress | 2 |\n| Done | 7 |'
+  }), 'Azure OpenAI + Azure DevOps');
+
+  assert.deepEqual(response.chart, {
+    title: 'Count by status',
+    labels: ['To Do', 'New', 'Approved', 'Committed', 'In Progress', 'Done'],
+    values: [22, 3, 12, 1, 2, 7],
+    unit: 'number',
+    type: 'bar'
+  });
+});
+
 test('does not expose truncated JSON as the assistant message', () => {
   const response = parseAssistantResponse('{"content":"Current sprint items.","table":{"columns":["ID"],"rows":[["205283"]', 'Azure OpenAI');
 
