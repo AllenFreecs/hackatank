@@ -503,7 +503,7 @@ function parseAssistantResponse(content, source, actions) {
   return { content: partialContent || normalizeAssistantText(raw) || raw, source, ...extras };
 }
 
-async function fetchCurrentSprintItems() {
+async function fetchCurrentSprintItems(limit = 50) {
   const orgUrl = process.env.AZURE_DEVOPS_ORG_URL?.replace(/\/$/, '');
   const project = process.env.AZURE_DEVOPS_DEFAULT_PROJECT;
   const team = process.env.AZURE_DEVOPS_TEAM || project;
@@ -539,7 +539,8 @@ async function fetchCurrentSprintItems() {
   }
 
   const queryResult = await wiqlResponse.json();
-  const ids = (queryResult.workItems ?? []).slice(0, 50).map((item) => item.id);
+  const resultLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 50) : 50;
+  const ids = (queryResult.workItems ?? []).slice(0, resultLimit).map((item) => item.id);
   if (!ids.length) {
     return { iteration: currentIteration.path, items: [] };
   }
@@ -922,6 +923,35 @@ const server = http.createServer(async (request, response) => {
       const result = await fetchTeamsCalendar({
         startDateTime: url.searchParams.get('startDateTime'),
         endDateTime: url.searchParams.get('endDateTime')
+      });
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  if (request.method === 'GET' && request.url.startsWith('/api/current-sprint')) {
+    try {
+      const url = new URL(request.url, 'http://127.0.0.1');
+      const result = await fetchCurrentSprintItems(Number(url.searchParams.get('limit') || 50));
+      response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify(result));
+    } catch (error) {
+      response.writeHead(502, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
+      response.end(JSON.stringify({ error: error.message }));
+    }
+    return;
+  }
+
+  if (request.method === 'GET' && request.url.startsWith('/api/outlook-messages')) {
+    try {
+      const url = new URL(request.url, 'http://127.0.0.1');
+      const result = await fetchOutlookMessages({
+        unreadOnly: url.searchParams.get('unreadOnly') === 'true',
+        limit: Number(url.searchParams.get('limit') || 25)
       });
       response.writeHead(200, { 'Content-Type': 'application/json', 'Access-Control-Allow-Origin': '*' });
       response.end(JSON.stringify(result));

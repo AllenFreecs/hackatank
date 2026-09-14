@@ -1,8 +1,12 @@
-import { Component, inject } from '@angular/core';
+import { Component, DestroyRef, inject } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { RouterLink } from '@angular/router';
 import { DataService } from '../../core/services/data.service';
+import { AzureSprintItem, AzureSprintService } from '../../core/services/azure-sprint.service';
+import { OutlookMessage, OutlookService } from '../../core/services/outlook.service';
+import { TeamsCalendarEvent, TeamsCalendarService } from '../../core/services/teams-calendar.service';
 import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.component';
 
 @Component({
@@ -14,15 +18,60 @@ import { KpiCardComponent } from '../../shared/components/kpi-card/kpi-card.comp
 })
 export class DashboardComponent {
   private readonly dataService = inject(DataService);
+  private readonly sprintService = inject(AzureSprintService);
+  private readonly calendarService = inject(TeamsCalendarService);
+  private readonly outlookService = inject(OutlookService);
+  private readonly destroyRef = inject(DestroyRef);
 
-  kpis = this.dataService.getKpis();
   weeklyActivity = this.dataService.getWeeklyActivity();
-  recentActivity = this.dataService.getActivitiesSnapshot();
   biPerformance = this.dataService.getBiPerformance();
-  teamsCalendar = this.dataService.getTeamsCalendar();
-  sprintBoard = this.dataService.getSprintBoard();
-  mcpConnectors = this.dataService.getMcpConnectors();
-  outlookQueue = this.dataService.getOutlookQueue();
+  teamsCalendar: TeamsCalendarEvent[] = [];
+  sprintBoard: Array<{ lane: string; items: AzureSprintItem[] }> = [];
+  outlookQueue: OutlookMessage[] = [];
+  calendarError = '';
+  outlookError = '';
+  sprintError = '';
+  sprintIteration = '';
+  tasks = this.dataService.getTasksSnapshot();
+
+  constructor() {
+    this.loadLiveData();
+  }
+
+  get pendingTasks(): number {
+    return this.tasks.filter((task) => task.status === 'Pending').length;
+  }
+
+  get latestSla(): number {
+    return this.biPerformance[this.biPerformance.length - 1]?.sla ?? 0;
+  }
+
+  get sprintItems(): number {
+    return this.sprintBoard.reduce((total, lane) => total + lane.items.length, 0);
+  }
+
+  get approvalQueue(): number {
+    return this.outlookQueue.length;
+  }
+
+  get displayOutlookQueue(): OutlookMessage[] {
+    return this.outlookQueue.filter((mail) => mail.priority !== 'Normal');
+  }
+
+  get meetingMinutes(): number {
+    return this.teamsCalendar.reduce(
+      (total, event) => total + Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000),
+      0
+    );
+  }
+
+  get highPriorityApprovals(): number {
+    return this.outlookQueue.filter((mail) => mail.priority === 'High').length;
+  }
+
+  get azureSprintItems(): number {
+    return this.sprintBoard.reduce((total, lane) => total + lane.items.length, 0);
+  }
 
   readonly maxPipeline = Math.max(...this.biPerformance.map((item) => item.pipeline));
   readonly maxClosedWon = Math.max(...this.biPerformance.map((item) => item.closedWon));
@@ -51,16 +100,6 @@ export class DashboardComponent {
     return Math.round((value / Math.max(max, 1)) * 100);
   }
 
-  connectorClass(status: string): string {
-    if (status === 'Healthy') {
-      return 'healthy';
-    }
-    if (status === 'Warning') {
-      return 'warning';
-    }
-    return 'critical';
-  }
-
   priorityClass(priority: string): string {
     if (priority === 'High') {
       return 'high';
@@ -69,6 +108,50 @@ export class DashboardComponent {
       return 'medium';
     }
     return 'low';
+  }
+
+  formatTime(value: string): string {
+    return new Date(value).toLocaleTimeString([], { hour: 'numeric', minute: '2-digit' });
+  }
+
+  eventDuration(event: TeamsCalendarEvent): string {
+    const minutes = Math.round((new Date(event.end).getTime() - new Date(event.start).getTime()) / 60000);
+    return `${minutes}m`;
+  }
+
+  private loadLiveData(): void {
+    this.calendarService.getEvents(new Date()).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => this.teamsCalendar = result.events,
+      error: (error: Error) => this.calendarError = error.message
+    });
+    this.outlookService.getMessages().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => this.outlookQueue = result.messages,
+      error: (error: Error) => this.outlookError = error.message
+    });
+    this.sprintService.getCurrentSprint(10).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (result) => {
+        this.sprintIteration = result.iteration;
+        this.sprintBoard = this.groupSprintItems(result.items);
+      },
+      error: (error: Error) => this.sprintError = error.message
+    });
+  }
+
+  private groupSprintItems(items: AzureSprintItem[]): Array<{ lane: string; items: AzureSprintItem[] }> {
+    const lanes = ['Backlog', 'In Progress', 'Review', 'Done'];
+    const grouped = lanes.map((lane) => ({ lane, items: [] as AzureSprintItem[] }));
+    for (const item of items) {
+      const state = item.state.toLowerCase();
+      const lane = state.includes('done') || state.includes('closed') || state.includes('resolved')
+        ? 'Done'
+        : state.includes('review') || state.includes('approved')
+          ? 'Review'
+          : state.includes('active') || state.includes('progress') || state.includes('committed')
+            ? 'In Progress'
+            : 'Backlog';
+      grouped.find((entry) => entry.lane === lane)?.items.push(item);
+    }
+    return grouped;
   }
 
   formatCurrency(value: number): string {

@@ -5,49 +5,49 @@
   </header>
 
   <div class="kpis">
-    <app-kpi-card label="Pending Tasks" [value]="kpis.pendingTasks" icon="pending_actions" />
-    <app-kpi-card label="Reports Generated" [value]="kpis.reportsGenerated" icon="description" />
-    <app-kpi-card label="Open Follow-ups" [value]="kpis.followUps" icon="task_alt" />
-    <app-kpi-card label="Automation Opportunities" [value]="kpis.automationOpportunities" icon="auto_fix_high" />
-  </div>
-
-  <div class="grid">
-    <mat-card class="wtw-panel panel connectors-panel">
-      <h3>MCP Connector Health</h3>
-      <div class="connectors">
-        @for (connector of mcpConnectors; track connector.name) {
-          <div class="connector-row">
-            <div>
-              <p class="connector-name">{{ connector.name }}</p>
-              <p class="connector-sync">Last sync {{ connector.lastSync }} · {{ connector.latencyMs }} ms</p>
-            </div>
-            <span class="status" [class]="'status ' + connectorClass(connector.status)">{{ connector.status }}</span>
-          </div>
-        }
-      </div>
-    </mat-card>
+    <app-kpi-card label="Pending Azure Tasks" [value]="pendingTasks" icon="pending_actions" />
+    <app-kpi-card label="Latest SLA" [value]="latestSla" icon="monitor_heart" />
+    <app-kpi-card label="Sprint Items" [value]="sprintItems" icon="view_kanban" />
+    <app-kpi-card label="Approval Queue" [value]="approvalQueue" icon="approval" />
   </div>
 
   <div class="grid second-grid">
     <mat-card class="wtw-panel panel teams-panel">
-      <h3>Teams Calendar Today</h3>
+      <div class="panel-header">
+        <h3>Teams Calendar Today</h3>
+        <span class="panel-stat">{{ teamsCalendar.length }} meetings · {{ meetingMinutes }}m</span>
+      </div>
       <div class="calendar-list">
-        @for (event of teamsCalendar; track event.title) {
+        @if (calendarError) {
+          <p class="panel-error">{{ calendarError }}</p>
+        } @else if (!teamsCalendar.length) {
+          <p class="panel-empty">No Teams meetings found for today.</p>
+        } @else {
+        @for (event of teamsCalendar; track event.id) {
           <div class="calendar-item">
-            <div class="time">{{ event.time }}</div>
+            <div class="time">{{ formatTime(event.start) }}</div>
             <div>
               <p class="event-title">{{ event.title }}</p>
-              <p class="event-meta">{{ event.duration }} · {{ event.owner }} · {{ event.channel }}</p>
+              <p class="event-meta">{{ eventDuration(event) }} · {{ event.organizer }} · {{ event.location || 'Teams meeting' }}</p>
             </div>
           </div>
+        }
         }
       </div>
     </mat-card>
 
     <mat-card class="wtw-panel panel outlook-panel">
-      <h3>Outlook Approval Queue</h3>
+      <div class="panel-header">
+        <h3>Outlook Approval Queue</h3>
+        <span class="panel-stat">{{ highPriorityApprovals }} high priority</span>
+      </div>
       <div class="queue-list">
-        @for (mail of outlookQueue; track mail.subject) {
+        @if (outlookError) {
+          <p class="panel-error">{{ outlookError }}</p>
+        } @else if (!displayOutlookQueue.length) {
+          <p class="panel-empty">No priority approval messages found.</p>
+        } @else {
+        @for (mail of displayOutlookQueue; track mail.id) {
           <div class="queue-item">
             <div>
               <p class="mail-subject">{{ mail.subject }}</p>
@@ -56,17 +56,26 @@
             <span class="priority" [class]="'priority ' + priorityClass(mail.priority)">{{ mail.priority }}</span>
           </div>
         }
+        }
       </div>
     </mat-card>
   </div>
 
   <mat-card class="wtw-panel panel sprint-panel">
     <div class="panel-header">
-      <h3>Sprint Board (Automation Team)</h3>
+      <div>
+        <h3>Sprint Board (Falcons and Army Ants)</h3>
+        <span class="panel-stat">{{ sprintIteration || 'Azure DevOps current sprint' }} · {{ azureSprintItems }} items</span>
+      </div>
       <button class="insight-cta" mat-flat-button color="primary" routerLink="/assistant">Ask Assistant →</button>
     </div>
 
     <div class="sprint-grid">
+      @if (sprintError) {
+        <p class="panel-error">{{ sprintError }}</p>
+      } @else if (!sprintBoard.length) {
+        <p class="panel-empty">No Azure DevOps sprint data found.</p>
+      } @else {
       @for (lane of sprintBoard; track lane.lane) {
         <div class="lane">
           <h4>{{ lane.lane }}</h4>
@@ -74,28 +83,15 @@
             @for (item of lane.items; track item.title) {
               <article class="ticket">
                 <p class="ticket-title">{{ item.title }}</p>
-                <p class="ticket-meta">{{ item.owner }}</p>
-                <span class="tag">{{ item.tag }}</span>
+                <p class="ticket-meta">{{ item.assignedTo }} · {{ item.state }}</p>
+                <span class="tag">{{ item.type }}</span>
               </article>
             }
           </div>
         </div>
       }
-    </div>
-  </mat-card>
-
-  <mat-card class="wtw-panel panel recent-panel">
-    <h3>Recent Activity</h3>
-    <div class="activity-list">
-      @for (item of recentActivity; track item; let i = $index) {
-        <article class="activity-item">
-          <span class="activity-dot" aria-hidden="true"></span>
-          <div>
-            <p class="activity-text">{{ item }}</p>
-            <p class="activity-time">{{ i + 1 }}h ago</p>
-          </div>
-        </article>
       }
     </div>
   </mat-card>
+
 </section>
