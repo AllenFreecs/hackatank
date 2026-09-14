@@ -1,10 +1,13 @@
 import { Component, DestroyRef, inject } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { interval } from 'rxjs';
 import { MatButtonModule } from '@angular/material/button';
 import { MatCardModule } from '@angular/material/card';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 import { DataService } from '../../core/services/data.service';
 import { NotificationService } from '../../core/services/notification.service';
+import { AiAssistantService } from '../../core/services/ai-assistant.service';
+import { ChatMessage } from '../../models/chat-message.model';
 import { AutomationDialogComponent, AutomationDialogResult } from './automation-dialog.component';
 
 @Component({
@@ -16,25 +19,18 @@ import { AutomationDialogComponent, AutomationDialogResult } from './automation-
 })
 export class AutomationsComponent {
   private readonly dataService = inject(DataService);
+  private readonly assistantService = inject(AiAssistantService);
   private readonly dialog = inject(MatDialog);
   private readonly notificationService = inject(NotificationService);
   private readonly destroyRef = inject(DestroyRef);
 
   automations = this.dataService.getAutomationsSnapshot();
 
-  createAutomation(): void {
-    this.dialog
-      .open(AutomationDialogComponent)
-      .afterClosed()
+  constructor() {
+    this.runScheduledAutomations();
+    interval(60_000)
       .pipe(takeUntilDestroyed(this.destroyRef))
-      .subscribe((result?: AutomationDialogResult) => {
-        if (!result) {
-          return;
-        }
-        this.dataService.addAutomation(result);
-        this.refresh();
-        this.notificationService.show('Automation created.');
-      });
+      .subscribe(() => this.runScheduledAutomations());
   }
 
   editAutomation(id: number): void {
@@ -59,22 +55,108 @@ export class AutomationsComponent {
         if (!result) {
           return;
         }
-        this.dataService.updateAutomation(id, result);
+        this.dataService.updateAutomation(id, {
+          ...result,
+          status: result.status ?? 'Enabled'
+        });
         this.refresh();
         this.notificationService.show('Automation updated.');
       });
   }
 
-  runNow(name: string): void {
-    this.notificationService.show(`${name} executed.`);
+  runNow(item: { id: number; name: string; aiQuery?: string }): void {
+    if (!item.aiQuery) {
+      this.notificationService.show(`No saved AI query found for ${item.name}.`);
+      return;
+    }
+
+    this.assistantService
+      .respond(item.aiQuery)
+      .pipe(takeUntilDestroyed(this.destroyRef))
+      .subscribe((reply) => {
+        const automation = this.automations.find((entry) => entry.id === item.id);
+        if (automation?.automationType === 'Email Creation') {
+          const output = this.dataService.simulateSendEmail(
+            reply.emailDraft?.subject ?? automation.name,
+            reply.emailDraft?.body ?? reply.content,
+            automation.recipient
+          );
+          this.dataService.markAutomationRun(item.id);
+          this.notificationService.show(`Email file created: ${output}`);
+          return;
+        }
+
+        if (automation) {
+          const output = this.dataService.exportAutomationResponse(
+            automation.id,
+            automation.name,
+            automation.fileType ?? 'pdf',
+            this.formatResponse(reply)
+          );
+          this.dataService.markAutomationRun(item.id);
+          this.notificationService.show(`File created: ${output}`);
+          return;
+        }
+
+        this.notificationService.show(`${item.name} executed. ${reply.content.slice(0, 80)}${reply.content.length > 80 ? '...' : ''}`);
+      });
+  }
+
+  openExportFolder(): void {
+    this.dataService.openExportFolder();
+    this.notificationService.show('Opening export folder.');
   }
 
   disable(id: number): void {
-    this.dataService.setAutomationStatus(id, 'Disabled');
+    const current = this.automations.find((item) => item.id === id);
+    this.dataService.setAutomationStatus(id, current?.status === 'Disabled' ? 'Enabled' : 'Disabled');
     this.refresh();
+  }
+
+  delete(id: number): void {
+    this.dataService.deleteAutomation(id);
+    this.refresh();
+    this.notificationService.show('Automation deleted.');
+  }
+
+  isEnabled(item: { status?: string }): boolean {
+    return item.status === 'Enabled' || item.status === 'Active';
   }
 
   private refresh(): void {
     this.automations = this.dataService.getAutomationsSnapshot();
+  }
+
+  private runScheduledAutomations(): void {
+    this.refresh();
+    this.automations
+      .filter((item) => this.isEnabled(item) && item.aiQuery && this.dataService.isAutomationDue(item))
+      .forEach((item) => this.runNow(item));
+  }
+
+  private formatResponse(message: ChatMessage): string {
+    const sections = [message.content];
+
+    if (message.figures?.length) {
+      sections.push(`Figures:\n${message.figures.map((figure) => `- ${figure.label}: ${figure.value}${figure.delta ? ` (${figure.delta})` : ''}`).join('\n')}`);
+    }
+
+    if (message.chart) {
+      sections.push(`Chart: ${message.chart.title}\n${message.chart.labels.map((label, index) => `${label}: ${message.chart?.values[index] ?? 0}${message.chart?.unit ? ` ${message.chart.unit}` : ''}`).join('\n')}`);
+    }
+
+    if (message.table) {
+      sections.push(`Table:\n${message.table.columns.join(' | ')}\n${message.table.rows.map((row) => row.join(' | ')).join('\n')}`);
+    }
+
+    if (message.insight) {
+      sections.push(`Insight: ${message.insight}`);
+    }
+
+    if (message.source) {
+      sections.push(`Source: ${message.source}`);
+    }
+
+    return sections.filter(Boolean).join('\n\n');
   }
 }

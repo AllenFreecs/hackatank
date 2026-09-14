@@ -1,0 +1,54 @@
+<section class="calendar-page">
+  <header class="page-header">
+    <div>
+      <p class="eyebrow">Microsoft Teams</p>
+      <h1>Calendar</h1>
+      <p class="intro">Your live Microsoft 365 schedule, with Teams meetings ready to join.</p>
+    </div>
+    <button mat-flat-button color="primary" (click)="openComposer()"><mat-icon>add</mat-icon> New event</button>
+  </header>
+
+  <div class="day-toolbar">
+    <div class="day-controls">
+      <button mat-icon-button aria-label="Previous day" (click)="previousDay()"><mat-icon>chevron_left</mat-icon></button>
+      <button mat-button (click)="goToToday()">Today</button>
+      <button mat-icon-button aria-label="Next day" (click)="nextDay()"><mat-icon>chevron_right</mat-icon></button>
+      <h2>{{ dayLabel }}</h2>
+    </div>
+    <div class="day-summary"><strong>{{ events.length }}</strong> meetings <span></span> <strong>{{ totalMinutes | number:'1.0-0' }}m</strong> scheduled</div>
+  </div>
+
+  @if (showComposer) {
+    <mat-card class="composer">
+      <div class="composer-header"><h2>Create Teams event</h2><button mat-icon-button aria-label="Close" (click)="cancelComposer()"><mat-icon>close</mat-icon></button></div>
+      <div class="form-grid">
+        <mat-form-field class="wide"><mat-label>Event title</mat-label><input matInput [(ngModel)]="form.title" /></mat-form-field>
+        <mat-form-field><mat-label>Starts</mat-label><input matInput type="datetime-local" [(ngModel)]="form.start" /></mat-form-field>
+        <mat-form-field><mat-label>Ends</mat-label><input matInput type="datetime-local" [(ngModel)]="form.end" /></mat-form-field>
+        <mat-form-field><mat-label>Location</mat-label><input matInput [(ngModel)]="form.location" placeholder="Optional" /></mat-form-field>
+        <mat-form-field><mat-label>Attendees</mat-label><input matInput [(ngModel)]="attendeeText" placeholder="Comma-separated email addresses" /></mat-form-field>
+        <mat-slide-toggle class="wide" [(ngModel)]="form.isOnlineMeeting">Create Teams meeting link</mat-slide-toggle>
+      </div>
+      <div class="composer-actions"><button mat-button (click)="cancelComposer()">Cancel</button><button mat-flat-button color="primary" [disabled]="!form.title.trim()" (click)="createEvent()">Create event</button></div>
+    </mat-card>
+  }
+
+  @if (isLoading) {
+    <div class="state"><mat-spinner diameter="38"></mat-spinner><p>Loading Microsoft Teams calendar...</p></div>
+  } @else if (errorMessage) {
+    <mat-card class="state error-state"><mat-icon>cloud_off</mat-icon><h2>Calendar unavailable</h2><p>{{ errorMessage }}</p><p class="hint">Add a Microsoft Graph access token to <strong>.env</strong>, then restart the API server.</p><button mat-stroked-button (click)="loadEvents()">Try again</button></mat-card>
+  } @else if (!events.length) {
+    <div class="state"><mat-icon>event_available</mat-icon><h2>No meetings scheduled</h2><p>This day is clear.</p></div>
+  } @else {
+    <div class="event-list">
+      @for (event of events; track event.id) {
+        <mat-card class="event-row">
+          <div class="time-column"><strong>{{ formatTime(event.start) }}</strong><span>{{ formatTime(event.end) }}</span></div>
+          <div class="event-marker"></div>
+          <div class="event-content"><h3>{{ event.title }}</h3><p>{{ event.location || 'No location' }} @if (event.organizer) { <span>· {{ event.organizer }}</span> }</p></div>
+          @if (event.isOnlineMeeting && event.joinUrl) { <a mat-stroked-button color="primary" [href]="event.joinUrl" target="_blank" rel="noreferrer"><mat-icon>videocam</mat-icon> Join</a> }
+        </mat-card>
+      }
+    </div>
+  }
+</section>

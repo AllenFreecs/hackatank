@@ -14,6 +14,7 @@ export interface ChatChart {
   labels: string[];
   values: number[];
   unit?: 'currency' | 'number' | 'percent';
+  type?: 'bar' | 'pie';
 }
 
 export interface ChatFileLink {
@@ -34,6 +35,7 @@ export interface ChatMessage {
   role: 'user' | 'assistant';
   content: string;
   timestamp: string;
+  pinned?: boolean;
   insight?: string;
   source?: string;
   figures?: ChatFigure[];

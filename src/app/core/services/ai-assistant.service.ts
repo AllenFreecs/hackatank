@@ -1,13 +1,42 @@
+import { HttpClient } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { Observable, delay, of } from 'rxjs';
+import { Observable, catchError, delay, from, map, of } from 'rxjs';
 import { ChatMessage } from '../../models/chat-message.model';
 import { DataService } from './data.service';
 
+export type AssistantHistoryEntry = Pick<ChatMessage, 'role' | 'content'>;
+
 @Injectable({ providedIn: 'root' })
 export class AiAssistantService {
-  constructor(private readonly dataService: DataService) {}
+  constructor(private readonly dataService: DataService, private readonly http: HttpClient) {}
 
-  respond(prompt: string): Observable<ChatMessage> {
+  respond(prompt: string, history: AssistantHistoryEntry[] = []): Observable<ChatMessage> {
+    if (window.electronApi) {
+      return from(window.electronApi.askAssistant(prompt, history)).pipe(
+        map((response) => ({
+          id: Date.now(),
+          role: 'assistant' as const,
+          timestamp: new Date().toISOString(),
+          ...response
+        })),
+        catchError(() => this.respondLocally(prompt)),
+        delay(900)
+      );
+    }
+
+    return this.http.post<Pick<ChatMessage, 'content' | 'source' | 'table' | 'chart' | 'actions'>>('http://127.0.0.1:3001/api/assistant', { prompt, history }).pipe(
+      map((response) => ({
+        id: Date.now(),
+        role: 'assistant' as const,
+        timestamp: new Date().toISOString(),
+        ...response
+      })),
+      catchError(() => this.respondLocally(prompt)),
+      delay(900)
+    );
+  }
+
+  private respondLocally(prompt: string): Observable<ChatMessage> {
     const lowered = prompt.toLowerCase();
 
     if (lowered.includes('revenue pipeline') || lowered.includes('closed-won trend')) {
@@ -16,7 +45,7 @@ export class AiAssistantService {
       const previous = performance[performance.length - 2];
 
       return this.reply({
-        content: 'Power BI revenue pipeline is trending upward across the latest six-week workspace snapshot.',
+        content: 'The current operational view shows revenue pipeline momentum across the latest six-week snapshot.',
         figures: [
           { label: 'Pipeline', value: this.formatCurrency(latest.pipeline), delta: this.deltaLabel(latest.pipeline, previous.pipeline) },
           { label: 'Closed-won', value: this.formatCurrency(latest.closedWon), delta: this.deltaLabel(latest.closedWon, previous.closedWon) },
@@ -39,7 +68,7 @@ export class AiAssistantService {
           ])
         },
         insight: `Closed-won revenue improved ${this.deltaLabel(latest.closedWon, performance[0].closedWon).toLowerCase()} from week 1 to week 6.`,
-        source: 'Power BI Workspace'
+        source: 'Operational Dashboard'
       });
     }
 
@@ -48,7 +77,7 @@ export class AiAssistantService {
       const total = rows.reduce((sum, entry) => sum + entry.pending, 0);
 
       return this.reply({
-        content: 'Power BI found the highest exception volume in HR, followed by Finance and Operations.',
+        content: 'The highest exception volume is in HR, followed by Finance and Operations.',
         figures: [
           { label: 'Total exceptions', value: `${total}` },
           { label: 'Highest owner group', value: rows[0].department, delta: `${rows[0].pending} pending` },
@@ -65,7 +94,7 @@ export class AiAssistantService {
           rows: rows.map((entry) => [entry.department, `${entry.pending}`])
         },
         insight: 'HR owns 46% of current pending exceptions, mostly from onboarding report checks.',
-        source: 'Power BI Workspace',
+        source: 'Operational Dashboard',
         actions: ['Create Summary', 'Show Details', 'Create Tasks']
       });
     }
@@ -87,7 +116,8 @@ export class AiAssistantService {
           title: 'Azure task health by status',
           labels: statusCounts.map((entry) => entry.label),
           values: statusCounts.map((entry) => entry.value),
-          unit: 'number'
+          unit: 'number',
+          type: 'bar'
         },
         table: {
           columns: ['Task', 'Owner', 'Department', 'Status'],
@@ -114,7 +144,8 @@ export class AiAssistantService {
           title: 'Sprint work by lane',
           labels: laneCounts.map((entry) => entry.label),
           values: laneCounts.map((entry) => entry.value),
-          unit: 'number'
+          unit: 'number',
+          type: 'pie'
         },
         table: {
           columns: ['Sprint item', 'Owner', 'Tag', 'Lane'],
@@ -131,14 +162,14 @@ export class AiAssistantService {
       const averageSla = Math.round(performance.reduce((sum, entry) => sum + entry.sla, 0) / performance.length);
 
       return this.reply({
-        content: 'Azure Monitor is watching Power BI refresh performance, revenue signal health, and SLA stability from the workspace feed.',
+        content: 'Azure Monitor is watching reporting performance, revenue signal health, and SLA stability from the operational feed.',
         figures: [
           { label: 'Latest SLA', value: `${latest.sla}%` },
           { label: 'Avg. SLA', value: `${averageSla}%` },
           { label: 'Latest forecast', value: this.formatCurrency(latest.forecast) }
         ],
         chart: {
-          title: 'Power BI workspace SLA trend',
+          title: 'Operational SLA trend',
           labels: performance.map((entry) => entry.week),
           values: performance.map((entry) => entry.sla),
           unit: 'percent'
@@ -147,7 +178,7 @@ export class AiAssistantService {
           columns: ['Week', 'SLA', 'Forecast', 'Closed-won'],
           rows: performance.map((entry) => [entry.week, `${entry.sla}%`, this.formatCurrency(entry.forecast), this.formatCurrency(entry.closedWon)])
         },
-        insight: 'Power BI SLA is healthy at 99% in the latest week, so revenue reporting risk is low.',
+        insight: 'Current reporting SLA remains healthy at 99% in the latest week, so operational risk is low.',
         source: 'Azure Monitor'
       });
     }
@@ -309,7 +340,7 @@ export class AiAssistantService {
       const longestIndex = durations.indexOf(Math.max(...durations));
 
       return this.reply({
-        content: 'Teams Calendar shows four operational meetings today, with the Power BI capacity review taking the largest block.',
+        content: 'Teams Calendar shows four operational meetings today, with the finance review taking the largest block.',
         figures: [
           { label: 'Meetings today', value: `${events.length}` },
           { label: 'Total focus time', value: `${totalMinutes}m` },
@@ -317,7 +348,7 @@ export class AiAssistantService {
         ],
         chart: {
           title: 'Meeting duration by event',
-          labels: events.map((entry) => entry.title.replace('MCP ', '').replace('Power BI ', '').replace('Outlook ', '')),
+          labels: events.map((entry) => entry.title.replace('MCP ', '').replace('Outlook ', '')),
           values: durations,
           unit: 'number'
         },
@@ -524,7 +555,7 @@ export class AiAssistantService {
     ) {
       return this.reply({
         content:
-          'Drafted a Teams thread update: "Power BI refresh completed, Azure alert triage in progress, and Outlook approvals are queued for sign-off."',
+          'Drafted a Teams thread update: "Operations refresh completed, Azure alert triage in progress, and Outlook approvals are queued for sign-off."',
         actions: ['Post Comment to Thread', 'Set Calendar Event', 'Find Related SharePoint Articles']
       });
     }
@@ -600,6 +631,11 @@ export class AiAssistantService {
         content: 'The procedure contains several manual verification steps that could be automated.',
         actions: ['Draft Email', 'Create Automation']
       });
+    }
+
+    const automationResult = this.tryCreateAutomationFromPrompt(prompt);
+    if (automationResult) {
+      return automationResult;
     }
 
     if (lowered.includes('purchase request')) {
@@ -687,6 +723,66 @@ export class AiAssistantService {
     });
   }
 
+  private tryCreateAutomationFromPrompt(prompt: string): Observable<ChatMessage> | null {
+    const hasAutomationIntent = /automation name|automation type|filetype|file type|frequency|called .*automation|make an automation|make an autoamation/i.test(prompt);
+    if (!hasAutomationIntent) {
+      return null;
+    }
+
+    const name =
+      this.extractPromptValue(prompt, 'Automation name') ||
+      this.extractNaturalLanguageValue(prompt, /called\s+(.+?)(?=\.|\s+Automation Type|\s+Frequency|\s+FileType|\s+File Type|$)/i);
+    const automationType =
+      this.extractPromptValue(prompt, 'Automation Type') ||
+      this.extractNaturalLanguageValue(prompt, /automation type\s*[:\-]?\s*(file creation|email creation)/i);
+    const frequency =
+      this.extractPromptValue(prompt, 'Frequency') ||
+      this.extractNaturalLanguageValue(prompt, /frequency\s*[:\-]?\s*([^.;\n]+)/i) ||
+      this.extractNaturalLanguageValue(prompt, /every\s+\d+\s+(minute|minutes|hour|hours|day|days)/i);
+    const fileType =
+      this.extractPromptValue(prompt, 'FileType') ||
+      this.extractPromptValue(prompt, 'File Type') ||
+      this.extractNaturalLanguageValue(prompt, /filetype\s*[:\-]?\s*(excel|word|pdf)/i) ||
+      this.extractNaturalLanguageValue(prompt, /file type\s*[:\-]?\s*(excel|word|pdf)/i);
+
+    const normalizedType = automationType ? automationType.trim() : '';
+    const normalizedFileType = fileType ? fileType.trim().toLowerCase() : '';
+
+    if (!name || !normalizedType || !frequency) {
+      return this.reply({
+        content:
+          'Before I create the automation, please confirm the details: Automation name, Automation Type, Frequency, and FileType if this is a File Creation automation.',
+        actions: ['Create Automation']
+      });
+    }
+
+    if (normalizedType === 'File Creation' && !['excel', 'word', 'pdf'].includes(normalizedFileType)) {
+      return this.reply({
+        content:
+          'I can create a File Creation automation. Please select the FileType from excel, word, or pdf before I save it.',
+        actions: ['Create Automation']
+      });
+    }
+
+    const saved = this.dataService.addAutomation({
+      name,
+      trigger: frequency,
+      action: normalizedType === 'Email Creation' ? 'Create .eml content' : `Export ${normalizedFileType || 'pdf'} report`,
+      frequency,
+      recipient: normalizedType === 'Email Creation' ? 'user@company.com' : 'operations@company.com',
+      automationType: normalizedType as 'File Creation' | 'Email Creation',
+      fileType: normalizedType === 'Email Creation' ? undefined : (normalizedFileType || 'pdf') as 'excel' | 'word' | 'pdf',
+      aiQuery: prompt,
+      status: 'Enabled'
+    });
+
+    return this.reply({
+      content: `Automation “${saved.name}” has been created and saved for ${saved.frequency}.`,
+      source: 'Automation Manager',
+      actions: ['View Automations']
+    });
+  }
+
   private reply(partial: Omit<ChatMessage, 'id' | 'role' | 'timestamp'>): Observable<ChatMessage> {
     return of({
       id: Date.now(),
@@ -694,6 +790,19 @@ export class AiAssistantService {
       timestamp: new Date().toISOString(),
       ...partial
     }).pipe(delay(900));
+  }
+
+  private extractPromptValue(prompt: string, key: string): string {
+    const match = new RegExp(
+      `${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*[:\-]\\s*([^\\n.;]+?)(?=(?:\\s*(?:Automation name|Automation Type|Frequency|FileType|File Type|$)))`,
+      'i'
+    ).exec(prompt);
+    return match ? match[1].trim().replace(/[.;]+$/, '') : '';
+  }
+
+  private extractNaturalLanguageValue(prompt: string, pattern: RegExp): string {
+    const match = pattern.exec(prompt);
+    return match ? match[1].trim().replace(/[.;]+$/, '') : '';
   }
 
   private extractLookupTerm(prompt: string): string {
