@@ -1,6 +1,6 @@
 const test = require('node:test');
 const assert = require('node:assert/strict');
-const { parseAssistantResponse, updateWorkItem, searchSharePointFiles, fetchOutlookMessages, assistantTools, sanitizeHistory } = require('./api-server.js');
+const { parseAssistantResponse, updateWorkItem, searchSharePointFiles, searchGitHub, fetchOutlookMessages, assistantTools, sanitizeHistory } = require('./api-server.js');
 
 test('normalizes array-style assistant content into readable text and keeps a table', () => {
   const response = parseAssistantResponse(JSON.stringify({
@@ -210,6 +210,44 @@ test('handles wildcard SharePoint file queries using drive children', async () =
     assert.equal(result.files[0].name, 'Policy.pdf');
   } finally {
     process.env.MICROSOFT_GRAPH_ACCESS_TOKEN = originalToken;
+    global.fetch = originalFetch;
+  }
+});
+
+test('searches GitHub without exposing the token in the tool result', async () => {
+  const originalToken = process.env.GITHUB_TOKEN;
+  const originalFetch = global.fetch;
+  const token = 'github-test-token';
+  process.env.GITHUB_TOKEN = token;
+  let request;
+  global.fetch = async (url, options) => {
+    request = { url, options };
+    return {
+      ok: true,
+      async json() {
+        return {
+          total_count: 1,
+          items: [{
+            number: 42,
+            title: 'Fix search',
+            state: 'open',
+            repository_url: 'https://api.github.com/repos/example/project',
+            html_url: 'https://github.com/example/project/issues/42',
+            user: { login: 'octocat' },
+            updated_at: '2026-09-25T12:00:00Z'
+          }]
+        };
+      }
+    };
+  };
+
+  try {
+    const result = await searchGitHub({ query: 'repo:example/project search', limit: 5 });
+    assert.equal(request.options.headers.Authorization, `Bearer ${token}`);
+    assert.equal(result.items[0].repository, 'project');
+    assert.doesNotMatch(JSON.stringify(result), new RegExp(token));
+  } finally {
+    process.env.GITHUB_TOKEN = originalToken;
     global.fetch = originalFetch;
   }
 });

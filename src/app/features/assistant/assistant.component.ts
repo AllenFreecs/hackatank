@@ -89,7 +89,7 @@ import { AutomationDialogComponent, AutomationDialogResult } from '../automation
 export class AssistantComponent {
   private readonly destroyRef = inject(DestroyRef);
   loading = false;
-  presets = ['Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox'];
+  presets = ['Azure Monitor', 'SharePoint Knowledge Hub', 'Teams Calendar', 'Outlook Mailbox', 'GitHub Engineering'];
   selectedPreset = this.presets[0];
   messages: ChatMessage[] = [AssistantComponent.welcomeMessage()];
 
@@ -117,6 +117,13 @@ export class AssistantComponent {
       'Summarize pending approval emails.',
       'Draft a follow-up email for overdue approvals.',
       'Show unread Outlook email workload.'
+    ],
+    'GitHub Engineering': [
+      'Describe a GitHub repository I can access.',
+      'Find open bugs in a GitHub repository I can access.',
+      'Summarize recent pull requests for a GitHub repository I can access.',
+      'Read a file from a GitHub repository I can access and explain it.',
+      'Propose a code update for a GitHub repository I can access.'
     ]
   };
 

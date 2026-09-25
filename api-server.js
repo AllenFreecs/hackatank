@@ -31,6 +31,121 @@ function microsoftGraphHeaders() {
   };
 }
 
+function githubHeaders() {
+  const token = process.env.GITHUB_TOKEN;
+  if (!token || token.startsWith('replace-with-')) {
+    throw new Error('GitHub is not configured in .env.');
+  }
+
+  return {
+    Accept: 'application/vnd.github+json',
+    Authorization: `Bearer ${token}`,
+    'X-GitHub-Api-Version': '2022-11-28'
+  };
+}
+
+async function searchGitHub({ query, limit = 10 } = {}) {
+  const searchQuery = typeof query === 'string' ? query.trim() : '';
+  if (!searchQuery) {
+    throw new Error('GitHub search query is required.');
+  }
+
+  const resultLimit = Number.isInteger(limit) && limit > 0 ? Math.min(limit, 25) : 10;
+  const params = new URLSearchParams({ q: searchQuery, per_page: `${resultLimit}` });
+  const response = await fetch(`https://api.github.com/search/issues?${params}`, { headers: githubHeaders() });
+  if (!response.ok) {
+    const errorBody = await response.text();
+    throw new Error(`GitHub search failed with status ${response.status}: ${errorBody}`);
+  }
+
+  const result = await response.json();
+  return {
+    totalCount: result.total_count || 0,
+    items: (result.items || []).map((item) => ({
+      number: item.number,
+      title: item.title,
+      state: item.state,
+      type: item.pull_request ? 'Pull request' : 'Issue',
+      repository: item.repository_url?.split('/').pop() || '',
+      url: item.html_url,
+      author: item.user?.login || 'unknown',
+      updatedAt: item.updated_at
+    }))
+  };
+}
+
+function githubRepositoryPath(owner, repo) {
+  if (!/^[\w.-]+$/.test(owner || '') || !/^[\w.-]+$/.test(repo || '') || owner.toLowerCase() === 'owner' || repo.toLowerCase() === 'repository') {
+    throw new Error('GitHub owner and repository are required.');
+  }
+  return `/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+}
+
+async function getGithubRepository({ owner, repo } = {}) {
+  const response = await fetch(`https://api.github.com${githubRepositoryPath(owner, repo)}`, { headers: githubHeaders() });
+  if (!response.ok) {
+    throw new Error(`GitHub repository lookup failed with status ${response.status}: ${await response.text()}`);
+  }
+  const repository = await response.json();
+  return {
+    name: repository.full_name,
+    description: repository.description || '',
+    visibility: repository.visibility,
+    defaultBranch: repository.default_branch,
+    language: repository.language,
+    stars: repository.stargazers_count,
+    openIssues: repository.open_issues_count,
+    url: repository.html_url,
+    updatedAt: repository.updated_at
+  };
+}
+
+async function getGithubFile({ owner, repo, path: filePath, branch } = {}) {
+  if (!filePath || filePath.includes('..')) {
+    throw new Error('A valid GitHub file path is required.');
+  }
+  const suffix = branch ? `?ref=${encodeURIComponent(branch)}` : '';
+  const response = await fetch(`https://api.github.com${githubRepositoryPath(owner, repo)}/contents/${filePath.split('/').map(encodeURIComponent).join('/')}${suffix}`, { headers: githubHeaders() });
+  if (!response.ok) {
+    throw new Error(`GitHub file lookup failed with status ${response.status}: ${await response.text()}`);
+  }
+  const file = await response.json();
+  if (Array.isArray(file) || file.type !== 'file') {
+    throw new Error('The requested GitHub path is not a file.');
+  }
+  return {
+    path: file.path,
+    sha: file.sha,
+    branch: branch || null,
+    content: Buffer.from(file.content || '', 'base64').toString('utf8'),
+    url: file.html_url
+  };
+}
+
+async function updateGithubFile({ owner, repo, path: filePath, content, message, branch, sha, confirm = false } = {}) {
+  if (!filePath || filePath.includes('..') || typeof content !== 'string' || !message) {
+    throw new Error('GitHub owner, repository, file path, content, and commit message are required.');
+  }
+  const proposedChanges = { owner, repo, path: filePath, branch: branch || null, content, message, sha: sha || null };
+  if (confirm !== true) {
+    return { requiresConfirmation: true, applied: false, proposedChanges };
+  }
+  if (!sha) {
+    throw new Error('The current file sha is required when confirming a GitHub code update.');
+  }
+
+  const response = await fetch(`https://api.github.com${githubRepositoryPath(owner, repo)}/contents/${filePath.split('/').map(encodeURIComponent).join('/')}`, {
+    method: 'PUT',
+    headers: { ...githubHeaders(), 'Content-Type': 'application/json' },
+    body: JSON.stringify({ message, content: Buffer.from(content, 'utf8').toString('base64'), branch, sha })
+  });
+  if (!response.ok) {
+    throw new Error(`GitHub code update failed with status ${response.status}: ${await response.text()}`);
+  }
+  const result = await response.json();
+  return { applied: true, path: filePath, commit: result.commit?.sha, url: result.commit?.html_url || result.content?.html_url };
+}
+
 function microsoftGraphCalendarPath() {
   const calendarId = process.env.MICROSOFT_GRAPH_CALENDAR_ID;
   const userId = process.env.MICROSOFT_GRAPH_USER_ID || 'me';
@@ -771,6 +886,61 @@ const assistantTools = [
   {
     type: 'function',
     function: {
+      name: 'search_github',
+      description: 'Searches GitHub issues and pull requests using the configured read-only GitHub token. Never exposes the token.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'GitHub search query, for example is:open label:bug.' },
+          limit: { type: 'integer', description: 'Maximum number of results, from 1 to 25.' }
+        },
+        required: ['query'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_github_repository',
+      description: 'Describes a GitHub repository using read-only metadata.',
+      parameters: {
+        type: 'object',
+        properties: { owner: { type: 'string' }, repo: { type: 'string' } },
+        required: ['owner', 'repo'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'get_github_file',
+      description: 'Reads a text file from a GitHub repository and returns its current sha for a guarded update.',
+      parameters: {
+        type: 'object',
+        properties: { owner: { type: 'string' }, repo: { type: 'string' }, path: { type: 'string' }, branch: { type: 'string' } },
+        required: ['owner', 'repo', 'path'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'update_github_file',
+      description: 'Updates a GitHub file. Always preview first and require explicit approval before calling with confirm true; include the current sha from get_github_file.',
+      parameters: {
+        type: 'object',
+        properties: { owner: { type: 'string' }, repo: { type: 'string' }, path: { type: 'string' }, content: { type: 'string' }, message: { type: 'string' }, branch: { type: 'string' }, sha: { type: 'string' }, confirm: { type: 'boolean' } },
+        required: ['owner', 'repo', 'path', 'content', 'message'],
+        additionalProperties: false
+      }
+    }
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_teams_calendar',
       description: 'Gets live Microsoft Teams/Microsoft 365 calendar events for the requested ISO date-time range.',
       parameters: {
@@ -844,6 +1014,18 @@ async function runAssistantTool(name, rawArguments) {
   if (name === 'search_sharepoint_files') {
     return searchSharePointFiles(args);
   }
+  if (name === 'search_github') {
+    return searchGitHub(args);
+  }
+  if (name === 'get_github_repository') {
+    return getGithubRepository(args);
+  }
+  if (name === 'get_github_file') {
+    return getGithubFile(args);
+  }
+  if (name === 'update_github_file') {
+    return updateGithubFile(args);
+  }
   if (name === 'get_teams_calendar') {
     return fetchTeamsCalendar(args);
   }
@@ -879,7 +1061,7 @@ async function askAzureOpenAI(prompt, history) {
   const messages = [
     {
       role: 'system',
-            content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state assumptions. Use get_teams_calendar for live Microsoft Teams or Microsoft 365 calendar questions. Use get_outlook_messages for live Outlook inbox, unread email, sender, priority, or approval-queue questions; it is read-only and returns message metadata. Use create_teams_calendar_event for scheduling requests: preview first and require explicit approval before calling with confirm true. Use get_current_sprint for live Azure DevOps sprint information. Use update_work_item for work item changes, but preview first and never write without explicit approval. Use search_sharepoint_files for live SharePoint searches; it is read-only and returns a browser-authenticated URL. Do not claim to have read SharePoint contents unless the tool returned them. Do not call tools for general explanations or drafting. Treat tool results as the source of truth. Always return a JSON object with a required content string and optional table and chart objects.'
+      content: 'You are the operations AI assistant for the Benefits Insights demo. Be concise, practical, and clearly state assumptions. Use get_teams_calendar for live Microsoft Teams or Microsoft 365 calendar questions. Use get_outlook_messages for live Outlook inbox, unread email, sender, priority, or approval-queue questions; it is read-only and returns message metadata. Use create_teams_calendar_event for scheduling requests: preview first and require explicit approval before calling with confirm true. Use get_current_sprint for live Azure DevOps sprint information. Use update_work_item for work item changes, but preview first and never write without explicit approval. Use search_sharepoint_files for live SharePoint searches; it is read-only and returns a browser-authenticated URL. Use get_github_repository to describe a repository, search_github for issues and pull requests, and get_github_file before proposing a code change. For GitHub requests, ask for the real owner and repository if they are missing; never call a GitHub tool with placeholder values such as owner/repository. Use update_github_file only after showing the exact proposed content and receiving explicit approval; never write without confirm true and the current file sha. Do not claim to have read repository contents unless a GitHub tool returned them. Do not call tools for general explanations or drafting. Treat tool results as the source of truth. Always return a JSON object with a required content string and optional table and chart objects.'
     },
     ...sanitizeHistory(history),
     { role: 'user', content: prompt }
@@ -1101,4 +1283,4 @@ if (require.main === module) {
   });
 }
 
-module.exports = { parseAssistantResponse, updateWorkItem, searchSharePointFiles, fetchTeamsCalendar, createTeamsCalendarEvent, fetchOutlookMessages, assistantTools, sanitizeHistory, confirmationActions };
+module.exports = { parseAssistantResponse, updateWorkItem, searchSharePointFiles, searchGitHub, getGithubRepository, getGithubFile, updateGithubFile, fetchTeamsCalendar, createTeamsCalendarEvent, fetchOutlookMessages, assistantTools, sanitizeHistory, confirmationActions };
