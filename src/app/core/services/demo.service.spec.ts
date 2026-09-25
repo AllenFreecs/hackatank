@@ -24,4 +24,12 @@ describe('DemoService', () => {
     demoService.resetDemo();
     expect(dataService.getReportsSnapshot().length).toBe(4);
   });
+
+  it('exports a report download built from relevant knowledge resources', () => {
+    const outputPath = dataService.exportReportDownload('Weekly Operations Report');
+
+    expect(outputPath).toContain('export/reports/');
+    expect(outputPath).toContain('weekly-operations-report-resources.csv');
+    expect(dataService.getUsefulReportResources('Weekly Operations Report').length).toBeGreaterThan(0);
+  });
 });

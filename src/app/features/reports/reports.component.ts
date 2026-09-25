@@ -22,28 +22,18 @@ export class ReportsComponent {
 
   displayedColumns = ['name', 'status', 'lastGenerated', 'owner', 'actions'];
   reports = this.dataService.getReportsSnapshot();
-  biPerformance = this.dataService.getBiPerformance();
   mcpConnectors = this.dataService.getMcpConnectors();
+  tasks = this.dataService.getTasksSnapshot();
+  documents = this.dataService.getDocumentsSnapshot();
+  emails = this.dataService.getOutlookQueue();
   loadingId?: number;
 
-  get totalPipeline(): number {
-    return this.biPerformance[this.biPerformance.length - 1]?.pipeline ?? 0;
+  get activeTasks(): number {
+    return this.tasks.filter((task) => task.status === 'Pending').length;
   }
 
-  get closedWon(): number {
-    return this.biPerformance[this.biPerformance.length - 1]?.closedWon ?? 0;
-  }
-
-  get avgSla(): number {
-    if (!this.biPerformance.length) {
-      return 0;
-    }
-    const total = this.biPerformance.reduce((sum, row) => sum + row.sla, 0);
-    return Math.round((total / this.biPerformance.length) * 10) / 10;
-  }
-
-  get warningConnectors(): number {
-    return this.mcpConnectors.filter((item) => item.status !== 'Healthy').length;
+  get readyReports(): number {
+    return this.reports.filter((report) => report.status === 'Ready').length;
   }
 
   generate(id: number): void {
@@ -62,22 +52,8 @@ export class ReportsComponent {
   }
 
   download(name: string): void {
-    const content = `Report,Status\n${name},Ready`;
-    const blob = new Blob([content], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement('a');
-    link.href = URL.createObjectURL(blob);
-    link.download = `${name.replace(/\s+/g, '-').toLowerCase()}.csv`;
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-    URL.revokeObjectURL(link.href);
-  }
-
-  formatCurrency(value: number): string {
-    return new Intl.NumberFormat('en-PH', {
-      style: 'currency',
-      currency: 'PHP',
-      maximumFractionDigits: 0
-    }).format(value);
+    const output = this.dataService.exportReportDownload(name);
+    const resourceCount = this.dataService.getUsefulReportResources(name).length;
+    this.notificationService.show(`Report download created: ${output} (${resourceCount} resource${resourceCount === 1 ? '' : 's'} attached).`);
   }
 }

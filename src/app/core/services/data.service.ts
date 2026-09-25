@@ -357,6 +357,38 @@ export class DataService {
     );
   }
 
+  getUsefulReportResources(reportName: string): DocumentItem[] {
+    const keywords = this.reportResourceKeywords(reportName);
+    const matches = keywords.flatMap((keyword) => this.searchDocuments(keyword));
+    const unique = new Map<string, DocumentItem>();
+
+    for (const document of [...matches, ...this.documentsSubject.value]) {
+      if (!unique.has(document.name)) {
+        unique.set(document.name, document);
+      }
+    }
+
+    return [...unique.values()].sort((a, b) => b.relevance - a.relevance).slice(0, 4);
+  }
+
+  exportReportDownload(reportName: string): string {
+    const reportResources = this.getUsefulReportResources(reportName);
+    const rows = reportResources.length
+      ? reportResources.map((resource) => [reportName, resource.name, resource.category, String(resource.relevance), resource.summary, this.sharePointFileUrl(resource.name)])
+      : [[reportName, 'No related resources found', 'N/A', '0', 'The assistant did not find matching knowledge documents for this report.', '']];
+
+    const content = [
+      ['Report', 'Resource', 'Category', 'Relevance', 'Summary', 'URL'].join(','),
+      ...rows.map((row) => row.map((cell) => `"${String(cell).replace(/"/g, '""')}"`).join(','))
+    ].join('\n');
+
+    const fileName = `${this.slugify(reportName)}-resources.csv`;
+    const outputPath = `export/reports/${fileName}`;
+    this.persistOutputFile(outputPath, content, 'text/csv;charset=utf-8;', fileName);
+    this.addActivity(`Report resources exported: ${fileName}`);
+    return outputPath;
+  }
+
   getPurchaseRequestPolicy(): { answer: string; source: string } {
     const policyDocument = this.searchDocuments('purchase request')[0];
     return {
@@ -471,6 +503,37 @@ export class DataService {
   private cleanEmailHeader(value: string): string { return value.replace(/[\r\n]+/g, ' ').trim(); }
   private escapeHtml(value: string): string { return value.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
   private slugify(value: string): string { return value.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '') || 'assistant-email'; }
+  private sharePointFileUrl(fileName: string): string { return `https://contoso.sharepoint.com/sites/knowledge-hub/Shared%20Documents/${encodeURIComponent(fileName)}`; }
+  private reportResourceKeywords(reportName: string): string[] {
+    const lowered = reportName.toLowerCase();
+    const queries = new Set<string>();
+
+    if (lowered.includes('weekly') || lowered.includes('operations')) {
+      queries.add('operations');
+      queries.add('onboarding');
+      queries.add('sla');
+    }
+    if (lowered.includes('sales')) {
+      queries.add('sales');
+      queries.add('procurement');
+    }
+    if (lowered.includes('hr') || lowered.includes('activity')) {
+      queries.add('onboarding');
+      queries.add('leave');
+    }
+    if (lowered.includes('pending') || lowered.includes('task')) {
+      queries.add('onboarding');
+      queries.add('finance approval');
+      queries.add('procurement');
+    }
+
+    if (!queries.size) {
+      queries.add('operations');
+      queries.add('finance approval');
+    }
+
+    return [...queries];
+  }
 
   private clone<T>(value: T): T {
     return structuredClone(value);

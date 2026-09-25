@@ -3,23 +3,23 @@
 
   <div class="summary-grid">
     <mat-card class="wtw-panel summary-card">
-      <p class="label">Pipeline</p>
-      <h3>{{ formatCurrency(totalPipeline) }}</h3>
+      <p class="label">Emails</p>
+      <h3>{{ emails.length }}</h3>
     </mat-card>
 
     <mat-card class="wtw-panel summary-card">
-      <p class="label">Closed Won</p>
-      <h3>{{ formatCurrency(closedWon) }}</h3>
+      <p class="label">Active Tasks</p>
+      <h3>{{ activeTasks }}</h3>
     </mat-card>
 
     <mat-card class="wtw-panel summary-card">
-      <p class="label">SLA Reliability</p>
-      <h3>{{ avgSla }}%</h3>
+      <p class="label">SharePoint Files</p>
+      <h3>{{ documents.length }}</h3>
     </mat-card>
 
     <mat-card class="wtw-panel summary-card">
-      <p class="label">Connector Alerts</p>
-      <h3>{{ warningConnectors }}</h3>
+      <p class="label">Ready Reports</p>
+      <h3>{{ readyReports }}</h3>
     </mat-card>
   </div>
 
