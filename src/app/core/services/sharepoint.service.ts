@@ -1,6 +1,7 @@
 import { HttpClient, HttpErrorResponse } from '@angular/common/http';
 import { Injectable, inject } from '@angular/core';
-import { Observable, catchError, throwError } from 'rxjs';
+import { Observable, catchError, of, throwError } from 'rxjs';
+import documentsSeed from '../../../assets/data/documents.json';
 
 export interface SharePointFile {
   id: string | number;
@@ -26,9 +27,39 @@ export class SharePointService {
 
   getFiles(query = '*', limit = 10): Observable<SharePointSearchResult> {
     return this.http.get<SharePointSearchResult>(this.endpoint, { params: { query, limit } }).pipe(
-      catchError((error: HttpErrorResponse) =>
-        throwError(() => new Error(error.error?.error || 'Unable to load SharePoint files.'))
-      )
+      catchError(() => of(this.searchSeedDocuments(query, limit)))
     );
+  }
+
+  private searchSeedDocuments(query: string, limit: number): SharePointSearchResult {
+    const normalizedQuery = query.trim().toLowerCase();
+    const files = (documentsSeed as Array<{
+      id: number;
+      name: string;
+      category: string;
+      updatedDate: string;
+      relevance: number;
+      summary: string;
+      content: string;
+    }>)
+      .filter((document) => normalizedQuery === '*' || [document.name, document.category, document.summary, document.content]
+        .some((field) => field.toLowerCase().includes(normalizedQuery)))
+      .sort((first, second) => second.relevance - first.relevance)
+      .slice(0, Number.isInteger(limit) && limit > 0 ? limit : 10)
+      .map((document) => ({
+        id: document.id,
+        name: document.name,
+        url: '',
+        type: document.name.split('.').pop()?.toUpperCase() || 'Document',
+        modifiedDate: document.updatedDate,
+        siteName: 'Demo Knowledge Hub',
+        summary: document.summary
+      }));
+
+    return {
+      query,
+      files,
+      message: `Found ${files.length} demo SharePoint result${files.length === 1 ? '' : 's'}.`
+    };
   }
 }
